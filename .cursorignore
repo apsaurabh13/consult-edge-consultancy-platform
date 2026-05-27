@@ -1,0 +1,111 @@
+# Dependencies
+
+node_modules/
+.venv/
+venv/
+env/
+
+# Python
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build
+
+dist/
+build/
+.next/
+out/
+
+# Coverage
+
+coverage/
+htmlcov/
+.pytest_cache/
+
+# Logs
+
+*.log
+logs/
+
+# Database
+
+*.sqlite3
+*.db
+
+# Environment
+
+.env
+.env.local
+.env.production
+.env.development
+
+# IDE
+
+.vscode/
+.idea/
+
+# OS
+
+.DS_Store
+Thumbs.db
+
+# Alembic Cache
+
+alembic/__pycache__/
+
+# Next.js Cache
+
+.next/cache/
+
+# Uploads
+
+uploads/
+storage/
+media/
+
+# Temporary
+
+tmp/
+temp/
+
+# Docker
+
+docker-data/
+
+# Generated Files
+
+*.generated.*
+*.min.js
+
+# Package Managers
+
+.pnpm-store/
+.npm/
+.yarn/
+
+# Testing Artifacts
+
+playwright-report/
+test-results/
+
+# Git
+
+.git/
+.gitignore
+
+# Large Assets
+
+*.mp4
+*.mov
+*.zip
+*.rar
+*.tar
+*.gz
+
+# AI Files
+
+.cursor/index/
+.cursor/cache/

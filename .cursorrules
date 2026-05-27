@@ -1,0 +1,271 @@
+
+Tech Stack:
+
+Frontend:
+- Next.js 15 App Router
+- TypeScript
+- Tailwind CSS
+- Shadcn UI
+- TanStack Query
+- Axios
+- React Hook Form
+- Zod
+
+Backend:
+- FastAPI
+- PostgreSQL
+- SQLAlchemy Async
+- Alembic
+- JWT Authentication
+- Redis
+- Celery
+
+Architecture:
+
+Frontend:
+UI Layer
+→ Feature Layer
+→ Service Layer
+→ API Layer
+
+Backend:
+Router Layer
+→ Service Layer
+→ Repository Layer
+→ Database Layer
+
+==================================================
+GENERAL RULES
+==================================================
+
+- Always write production-grade code.
+- Never write demo code.
+- Never use placeholder implementations.
+- Follow SOLID principles.
+- Follow Clean Architecture principles.
+- Keep code modular and reusable.
+- Use dependency injection whenever possible.
+- Prefer composition over inheritance.
+- Avoid code duplication.
+- Use strict TypeScript.
+- Use async/await consistently.
+- Use meaningful variable names.
+
+==================================================
+BACKEND RULES
+==================================================
+
+FastAPI routers must:
+
+- Contain routing logic only.
+- Never contain business logic.
+- Never contain SQL queries.
+
+Services must:
+
+- Contain business logic.
+- Handle validation.
+- Handle authorization.
+- Call repositories.
+
+Repositories must:
+
+- Contain database access logic only.
+- Never contain business rules.
+
+Use:
+
+- SQLAlchemy Async
+- AsyncSession
+- Repository Pattern
+- Service Pattern
+
+All APIs must:
+
+- Return consistent responses.
+- Use Pydantic schemas.
+- Include proper status codes.
+- Include error handling.
+
+Authentication:
+
+- JWT access token
+- Role-based access control
+- bcrypt password hashing
+
+Database:
+
+- PostgreSQL
+- UUID primary keys
+- Proper foreign keys
+- Proper indexes
+
+Migrations:
+
+- Use Alembic only.
+- Never modify existing migrations.
+
+Testing:
+
+- Use pytest.
+- Create unit tests for services.
+- Create integration tests for APIs.
+
+==================================================
+FRONTEND RULES
+==================================================
+
+Use:
+
+- Server Components by default.
+- Client Components only when necessary.
+
+Forms:
+
+- React Hook Form
+- Zod validation
+
+API Calls:
+
+- TanStack Query
+- Axios
+
+Components:
+
+- Keep components small.
+- Prefer reusable components.
+- Separate UI from business logic.
+
+Do not:
+
+- Fetch data directly inside UI components.
+- Place API logic inside components.
+- Duplicate state.
+
+==================================================
+FOLDER STRUCTURE
+==================================================
+
+Frontend:
+
+src/
+├── app/
+├── components/
+├── features/
+├── services/
+├── hooks/
+├── lib/
+├── providers/
+├── types/
+
+Backend:
+
+app/
+├── api/
+├── core/
+├── db/
+├── models/
+├── schemas/
+├── repositories/
+├── services/
+├── chatbot/
+├── middleware/
+├── tasks/
+├── utils/
+
+==================================================
+NAMING CONVENTIONS
+==================================================
+
+Files:
+snake_case
+
+Examples:
+
+auth_service.py
+consultation_repository.py
+
+Classes:
+PascalCase
+
+Examples:
+
+AuthService
+ConsultationRepository
+
+Functions:
+snake_case
+
+Examples:
+
+create_consultation()
+get_consultations()
+
+Variables:
+snake_case
+
+Constants:
+UPPER_SNAKE_CASE
+
+==================================================
+ERROR HANDLING
+==================================================
+
+Backend:
+
+- Use custom exceptions.
+- Never expose internal errors.
+- Return structured API errors.
+
+Frontend:
+
+- Show user-friendly errors.
+- Handle loading states.
+- Handle empty states.
+
+==================================================
+CHATBOT MODULE
+==================================================
+
+Intent classification must be separated from database logic.
+
+Structure:
+
+chatbot/
+├── intent_classifier.py
+├── sql_resolver.py
+├── response_builder.py
+
+Never place chatbot logic inside routers.
+
+==================================================
+SECURITY
+==================================================
+
+Never:
+
+- Store plain-text passwords.
+- Expose secrets.
+- Hardcode credentials.
+- Disable validation.
+
+Always:
+
+- Validate inputs.
+- Sanitize outputs.
+- Verify permissions.
+- Use environment variables.
+
+==================================================
+CODE GENERATION
+==================================================
+
+When generating code:
+
+1. Explain architecture briefly.
+2. Generate complete code.
+3. Include imports.
+4. Include typing.
+5. Follow project structure.
+6. Follow repository-service pattern.
+7. Follow production standards.
