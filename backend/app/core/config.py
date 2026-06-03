@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     REFRESH_TOKEN_EXPIRE_DAYS: int
+    SUPER_ADMIN_EMAIL: str
+    SUPER_ADMIN_PASSWORD: str
+
+    ADMIN_EMAIL: str
+    ADMIN_PASSWORD: str
+
 
     class Config:
         env_file = ".env"
