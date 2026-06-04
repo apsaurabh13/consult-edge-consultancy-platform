@@ -25,6 +25,12 @@ from app.services.expertise_service import (
     ExpertiseService
 )
 
+from app.services.availability_service import (
+    AvailabilityService
+)
+from app.api.dependencies.repositories import (
+    get_availability_repository
+)
 
 
 def get_auth_service(
@@ -80,3 +86,19 @@ def get_expertise_service(
         consultant_repo,
         consultant_expertise_repo
     )
+    
+def get_availability_service(
+    availability_repo=Depends(
+        get_availability_repository
+    ),
+    consultant_repo=Depends(
+        get_consultant_repository
+    )
+):
+    return AvailabilityService(
+        availability_repo,
+        consultant_repo
+    )
+    
+    
+    

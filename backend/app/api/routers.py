@@ -14,7 +14,9 @@ from app.api.v1.admin.router import (
 from app.api.v1.experties.router import(
     router as experties_router
 )
-
+from app.api.v1.availability.router import (
+    router as availability_router
+)
 
 api_router = APIRouter()
 
@@ -30,4 +32,7 @@ api_router.include_router(
 )
 api_router.include_router(
     experties_router
+)
+api_router.include_router(
+    availability_router
 )

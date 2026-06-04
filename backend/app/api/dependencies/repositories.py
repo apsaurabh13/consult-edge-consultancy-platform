@@ -16,6 +16,9 @@ from app.repositories.expertise_category_repository import (
 from app.repositories.consultant_expertise_repository import (
     ConsultantExpertiseRepository
 )
+from app.repositories.availability_repository import (
+    AvailabilityRepository
+)
 
 def get_user_repository(
     db: AsyncSession = Depends(get_db)
@@ -51,5 +54,12 @@ def get_consultant_expertise_repository(
     db: AsyncSession = Depends(get_db)
 ):
     return ConsultantExpertiseRepository(
+        db
+    )
+    
+def get_availability_repository(
+    db=Depends(get_db)
+):
+    return AvailabilityRepository(
         db
     )
