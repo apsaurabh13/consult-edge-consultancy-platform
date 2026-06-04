@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter
 from fastapi import Depends
 
@@ -9,14 +11,6 @@ from app.api.dependencies.services import (
     get_consultant_service
 )
 
-from app.services.consultant_service import (
-    ConsultantService
-)
-
-from app.schemas.consultant.apply import (
-    ApplyConsultantRequest
-)
-
 router = APIRouter(
     prefix="/consultants",
     tags=["Consultants"]
@@ -24,35 +18,55 @@ router = APIRouter(
 
 
 @router.post("/apply")
-async def apply_consultant(
-    payload: ApplyConsultantRequest,
-    user=Depends(get_current_user),
-    service: ConsultantService = Depends(
+async def apply_for_consultant(
+    data,
+    current_user=Depends(
+        get_current_user
+    ),
+    service=Depends(
         get_consultant_service
     )
 ):
 
-    consultant = await service.apply(
-        user,
-        payload
+    return await service.apply(
+        current_user,
+        data
     )
-
-    return {
-        "message": "Application submitted successfully",
-        "consultant_id": str(
-            consultant.id
-        )
-    }
 
 
 @router.get("/me")
 async def get_my_profile(
-    user=Depends(get_current_user),
-    service: ConsultantService = Depends(
+    current_user=Depends(
+        get_current_user
+    ),
+    service=Depends(
         get_consultant_service
     )
 ):
 
     return await service.get_my_profile(
-        user
+        current_user
+    )
+
+
+@router.get("")
+async def list_consultants(
+    service=Depends(
+        get_consultant_service
+    )
+):
+
+    return await service.list_consultants()
+
+
+@router.get("/{consultant_id}")
+async def get_consultant_details(
+    consultant_id: UUID,
+    service=Depends(
+        get_consultant_service
+    )
+):
+
+    return await service.get_consultant_details(
+        consultant_id
     )

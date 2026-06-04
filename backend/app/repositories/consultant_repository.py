@@ -20,11 +20,15 @@ class ConsultantRepository:
         consultant_id: UUID
     ) -> Optional[Consultant]:
 
-        stmt = select(Consultant).where(
+        stmt = select(
+            Consultant
+        ).where(
             Consultant.id == consultant_id
         )
 
-        result = await self.db.execute(stmt)
+        result = await self.db.execute(
+            stmt
+        )
 
         return result.scalar_one_or_none()
 
@@ -33,11 +37,15 @@ class ConsultantRepository:
         user_id: UUID
     ) -> Optional[Consultant]:
 
-        stmt = select(Consultant).where(
+        stmt = select(
+            Consultant
+        ).where(
             Consultant.user_id == user_id
         )
 
-        result = await self.db.execute(stmt)
+        result = await self.db.execute(
+            stmt
+        )
 
         return result.scalar_one_or_none()
 
@@ -45,11 +53,15 @@ class ConsultantRepository:
         self
     ) -> list[Consultant]:
 
-        stmt = select(Consultant).where(
+        stmt = select(
+            Consultant
+        ).where(
             Consultant.approval_status == "PENDING"
         )
 
-        result = await self.db.execute(stmt)
+        result = await self.db.execute(
+            stmt
+        )
 
         return list(
             result.scalars().all()
@@ -59,11 +71,33 @@ class ConsultantRepository:
         self
     ) -> list[Consultant]:
 
-        stmt = select(Consultant).where(
+        stmt = select(
+            Consultant
+        ).where(
             Consultant.approval_status == "PENDING"
         )
 
-        result = await self.db.execute(stmt)
+        result = await self.db.execute(
+            stmt
+        )
+
+        return list(
+            result.scalars().all()
+        )
+
+    async def get_approved(
+        self
+    ) -> list[Consultant]:
+
+        stmt = select(
+            Consultant
+        ).where(
+            Consultant.approval_status == "APPROVED"
+        )
+
+        result = await self.db.execute(
+            stmt
+        )
 
         return list(
             result.scalars().all()
@@ -76,7 +110,9 @@ class ConsultantRepository:
 
         try:
 
-            self.db.add(consultant)
+            self.db.add(
+                consultant
+            )
 
             await self.db.commit()
 

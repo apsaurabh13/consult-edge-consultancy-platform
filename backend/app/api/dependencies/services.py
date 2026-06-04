@@ -6,17 +6,19 @@ from app.api.dependencies.repositories import (
     get_role_repository,
     get_consultant_repository,
     get_expertise_category_repository,
-    get_consultant_expertise_repository
+    get_consultant_expertise_repository,
+    get_availability_repository,
+    get_consultation_repository
 )
 
-from app.services.auth_service import AuthService
+from app.services.auth_service import (
+    AuthService
+)
+
 from app.services.consultant_service import (
     ConsultantService
 )
 
-from app.api.dependencies.repositories import (
-    get_consultant_repository
-)
 from app.services.admin_service import (
     AdminService
 )
@@ -28,31 +30,48 @@ from app.services.expertise_service import (
 from app.services.availability_service import (
     AvailabilityService
 )
-from app.api.dependencies.repositories import (
-    get_availability_repository
+
+from app.services.consultation_service import (
+    ConsultationService
 )
 
 
 def get_auth_service(
-    user_repo=Depends(get_user_repository),
-    session_repo=Depends(get_session_repository),
-    role_repo=Depends(get_role_repository)
+    user_repo=Depends(
+        get_user_repository
+    ),
+    session_repo=Depends(
+        get_session_repository
+    ),
+    role_repo=Depends(
+        get_role_repository
+    )
 ):
     return AuthService(
         user_repo,
         session_repo,
         role_repo
     )
-    
+
+
 def get_consultant_service(
     consultant_repo=Depends(
         get_consultant_repository
+    ),
+    consultant_expertise_repo=Depends(
+        get_consultant_expertise_repository
+    ),
+    availability_repo=Depends(
+        get_availability_repository
     )
 ):
     return ConsultantService(
-        consultant_repo
+        consultant_repo,
+        consultant_expertise_repo,
+        availability_repo
     )
-    
+
+
 def get_admin_service(
     consultant_repo=Depends(
         get_consultant_repository
@@ -69,7 +88,8 @@ def get_admin_service(
         user_repo,
         role_repo
     )
-    
+
+
 def get_expertise_service(
     category_repo=Depends(
         get_expertise_category_repository
@@ -86,7 +106,8 @@ def get_expertise_service(
         consultant_repo,
         consultant_expertise_repo
     )
-    
+
+
 def get_availability_service(
     availability_repo=Depends(
         get_availability_repository
@@ -99,6 +120,17 @@ def get_availability_service(
         availability_repo,
         consultant_repo
     )
-    
-    
-    
+
+
+def get_consultation_service(
+    consultation_repo=Depends(
+        get_consultation_repository
+    ),
+    consultant_repo=Depends(
+        get_consultant_repository
+    )
+):
+    return ConsultationService(
+        consultation_repo,
+        consultant_repo
+    )
