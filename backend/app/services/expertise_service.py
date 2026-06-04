@@ -84,31 +84,27 @@ class ExpertiseService:
             for item in existing_expertise
         }
 
-        for expertise_id in data.expertise_ids:
+        for category_id in data.category_ids:
 
             category = (
                 await self.category_repo.get_by_id(
-                    expertise_id
+                    category_id
                 )
             )
 
             if not category:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=(
-                        f"Expertise "
-                        f"{expertise_id} "
-                        f"not found"
-                    )
+                    detail=f"Category {category_id} not found"
                 )
 
-            if expertise_id in existing_ids:
+            if category_id in existing_ids:
                 continue
 
             consultant_expertise = (
                 ConsultantExpertise(
                     consultant_id=consultant.id,
-                    expertise_id=expertise_id
+                    expertise_id=category_id
                 )
             )
 
@@ -117,8 +113,7 @@ class ExpertiseService:
             )
 
         return {
-            "message":
-            "Expertise added successfully"
+            "message": "Expertise added successfully"
         }
 
     async def get_my_expertise(
