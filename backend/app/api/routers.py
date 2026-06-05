@@ -20,7 +20,9 @@ from app.api.v1.availability.router import (
 from app.api.v1.consultations.router import (
     router as consultation_router
 )
-
+from app.api.v1.transactions.router import (
+    router as transaction_router
+)
 api_router = APIRouter()
 
 api_router.include_router(
@@ -41,4 +43,9 @@ api_router.include_router(
 )
 api_router.include_router(
     consultation_router
+)
+
+api_router.include_router(
+    transaction_router,
+ 
 )

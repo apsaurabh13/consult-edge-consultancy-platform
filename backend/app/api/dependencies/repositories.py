@@ -22,6 +22,9 @@ from app.repositories.availability_repository import (
 from app.repositories.consultation_repository import (
     ConsultationRepository
 )
+from app.repositories.transaction_repository import (
+    TransactionRepository
+)
 
 def get_user_repository(
     db: AsyncSession = Depends(get_db)
@@ -73,5 +76,12 @@ def get_consultation_repository(
     )
 ):
     return ConsultationRepository(
+        db
+    )
+    
+def get_transaction_repository(
+    db=Depends(get_db)
+):
+    return TransactionRepository(
         db
     )

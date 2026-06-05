@@ -8,7 +8,8 @@ from app.api.dependencies.repositories import (
     get_expertise_category_repository,
     get_consultant_expertise_repository,
     get_availability_repository,
-    get_consultation_repository
+    get_consultation_repository,
+    get_transaction_repository,
 )
 
 from app.services.auth_service import AuthService
@@ -17,6 +18,9 @@ from app.services.admin_service import AdminService
 from app.services.expertise_service import ExpertiseService
 from app.services.availability_service import AvailabilityService
 from app.services.consultation_service import ConsultationService
+from app.services.transaction_service import (
+    TransactionService
+)
 
 
 def get_auth_service(
@@ -114,4 +118,17 @@ def get_consultation_service(
         consultation_repo,
         consultant_repo,
         availability_repo
+    )
+    
+def get_transaction_service(
+    transaction_repo=Depends(
+        get_transaction_repository
+    ),
+    consultation_repo=Depends(
+        get_consultation_repository
+    )
+):
+    return TransactionService(
+        transaction_repo,
+        consultation_repo
     )
