@@ -91,6 +91,26 @@ class ConsultationRepository:
             result.scalars().all()
         )
 
+    async def get_consultant_bookings(
+        self,
+        consultant_id: UUID
+    ):
+
+        stmt = select(
+            Consultation
+        ).where(
+            Consultation.consultant_id
+            == consultant_id
+        )
+
+        result = await self.db.execute(
+            stmt
+        )
+
+        return list(
+            result.scalars().all()
+        )
+
     async def update(
         self,
         consultation: Consultation

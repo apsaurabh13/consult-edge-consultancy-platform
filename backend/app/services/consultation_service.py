@@ -1,3 +1,4 @@
+
 from fastapi import HTTPException
 from fastapi import status
 
@@ -9,7 +10,8 @@ class ConsultationService:
     def __init__(
         self,
         consultation_repo,
-        consultant_repo
+        consultant_repo,
+        availability_repo
     ):
         self.consultation_repo = (
             consultation_repo
@@ -17,6 +19,10 @@ class ConsultationService:
 
         self.consultant_repo = (
             consultant_repo
+        )
+
+        self.availability_repo = (
+            availability_repo
         )
 
     async def book_consultation(
@@ -53,15 +59,10 @@ class ConsultationService:
                 )
             )
 
-        if (
-            consultant.approval_status
-            != "APPROVED"
-        ):
+        if consultant.approval_status != "APPROVED":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Consultant is not approved"
-                )
+                detail="Consultant is not approved"
             )
 
         if (
@@ -75,6 +76,78 @@ class ConsultationService:
                     "scheduled_end must be greater than scheduled_start"
                 )
             )
+
+        booking_day = (
+            data.scheduled_start.weekday() + 1
+        )
+
+        booking_start_time = (
+            data.scheduled_start.time()
+        )
+
+        booking_end_time = (
+            data.scheduled_end.time()
+        )
+
+        availability_slots = (
+            await self.availability_repo
+            .get_by_consultant_id(
+                consultant.id
+            )
+        )
+
+        is_available = False
+
+        for slot in availability_slots:
+
+            if (
+                slot.day_of_week
+                == booking_day
+            ):
+
+                if (
+                    slot.start_time
+                    <= booking_start_time
+                    and
+                    slot.end_time
+                    >= booking_end_time
+                ):
+                    is_available = True
+                    break
+
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Selected time is not available"
+                )
+            )
+
+        existing_bookings = (
+            await self.consultation_repo
+            .get_consultant_bookings(
+                consultant.id
+            )
+        )
+
+        for booking in existing_bookings:
+
+            if booking.status == "CANCELLED":
+                continue
+
+            if (
+                data.scheduled_start
+                <
+                booking.scheduled_end
+                and
+                data.scheduled_end
+                >
+                booking.scheduled_start
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Slot already booked"
+                )
 
         consultation = Consultation(
             client_id=user.id,
@@ -170,14 +243,6 @@ class ConsultationService:
         user
     ):
 
-        if user.role.name != "CLIENT":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "Only clients can cancel consultations"
-                )
-            )
-
         consultation = (
             await self.consultation_repo
             .get_by_id(
@@ -191,10 +256,7 @@ class ConsultationService:
                 detail="Consultation not found"
             )
 
-        if (
-            consultation.client_id
-            != user.id
-        ):
+        if consultation.client_id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
@@ -202,31 +264,7 @@ class ConsultationService:
                 )
             )
 
-        if (
-            consultation.status
-            == "COMPLETED"
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Completed consultation cannot be cancelled"
-                )
-            )
-
-        if (
-            consultation.status
-            == "CANCELLED"
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Consultation already cancelled"
-                )
-            )
-
-        consultation.status = (
-            "CANCELLED"
-        )
+        consultation.status = "CANCELLED"
 
         await self.consultation_repo.update(
             consultation
@@ -243,14 +281,6 @@ class ConsultationService:
         user
     ):
 
-        if user.role.name != "CONSULTANT":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "Only consultants can confirm consultations"
-                )
-            )
-
         consultant = (
             await self.consultant_repo
             .get_by_user_id(
@@ -277,20 +307,7 @@ class ConsultationService:
                 detail="Consultation not found"
             )
 
-        if (
-            consultation.consultant_id
-            != consultant.id
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "You can only confirm your own consultations"
-                )
-            )
-
-        consultation.status = (
-            "CONFIRMED"
-        )
+        consultation.status = "CONFIRMED"
 
         await self.consultation_repo.update(
             consultation
@@ -307,14 +324,6 @@ class ConsultationService:
         user
     ):
 
-        if user.role.name != "CONSULTANT":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "Only consultants can complete consultations"
-                )
-            )
-
         consultant = (
             await self.consultant_repo
             .get_by_user_id(
@@ -341,20 +350,7 @@ class ConsultationService:
                 detail="Consultation not found"
             )
 
-        if (
-            consultation.consultant_id
-            != consultant.id
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "You can only complete your own consultations"
-                )
-            )
-
-        consultation.status = (
-            "COMPLETED"
-        )
+        consultation.status = "COMPLETED"
 
         await self.consultation_repo.update(
             consultation
@@ -364,3 +360,4 @@ class ConsultationService:
             "message":
             "Consultation completed"
         }
+

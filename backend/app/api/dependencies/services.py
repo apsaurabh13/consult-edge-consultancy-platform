@@ -11,41 +11,18 @@ from app.api.dependencies.repositories import (
     get_consultation_repository
 )
 
-from app.services.auth_service import (
-    AuthService
-)
-
-from app.services.consultant_service import (
-    ConsultantService
-)
-
-from app.services.admin_service import (
-    AdminService
-)
-
-from app.services.expertise_service import (
-    ExpertiseService
-)
-
-from app.services.availability_service import (
-    AvailabilityService
-)
-
-from app.services.consultation_service import (
-    ConsultationService
-)
+from app.services.auth_service import AuthService
+from app.services.consultant_service import ConsultantService
+from app.services.admin_service import AdminService
+from app.services.expertise_service import ExpertiseService
+from app.services.availability_service import AvailabilityService
+from app.services.consultation_service import ConsultationService
 
 
 def get_auth_service(
-    user_repo=Depends(
-        get_user_repository
-    ),
-    session_repo=Depends(
-        get_session_repository
-    ),
-    role_repo=Depends(
-        get_role_repository
-    )
+    user_repo=Depends(get_user_repository),
+    session_repo=Depends(get_session_repository),
+    role_repo=Depends(get_role_repository)
 ):
     return AuthService(
         user_repo,
@@ -128,9 +105,13 @@ def get_consultation_service(
     ),
     consultant_repo=Depends(
         get_consultant_repository
+    ),
+    availability_repo=Depends(
+        get_availability_repository
     )
 ):
     return ConsultationService(
         consultation_repo,
-        consultant_repo
+        consultant_repo,
+        availability_repo
     )
