@@ -7,3 +7,7 @@ class UserRole(str, Enum):
     CLIENT = "CLIENT"
     SUPER_ADMIN = "SUPER_ADMIN"
     
+class ConsultantStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"

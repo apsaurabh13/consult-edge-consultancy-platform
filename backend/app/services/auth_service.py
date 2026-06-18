@@ -24,10 +24,12 @@ class AuthService:
     def __init__(
         self,
         user_repo,
-        session_repo
+        session_repo,
+        role_repo
     ):
         self.user_repo = user_repo
         self.session_repo = session_repo
+        self.role_repo = role_repo
 
     async def register(
         self,
@@ -44,6 +46,16 @@ class AuthService:
                 detail="Email already exists"
             )
 
+        client_role = await self.role_repo.get_by_name(
+            "CLIENT"
+        )
+
+        if not client_role:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="CLIENT role not found"
+            )
+
         user = User(
             first_name=data.first_name,
             last_name=data.last_name,
@@ -51,7 +63,8 @@ class AuthService:
             phone=data.phone,
             password_hash=hash_password(
                 data.password
-            )
+            ),
+            role_id=client_role.id
         )
 
         return await self.user_repo.create(
