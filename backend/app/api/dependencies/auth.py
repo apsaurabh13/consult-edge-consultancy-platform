@@ -1,36 +1,43 @@
-from fastapi import Depends
-from fastapi import HTTPException
-from fastapi.security import OAuth2PasswordBearer
+from typing import Callable
 
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import (
+    ForbiddenException,
+    UnauthorizedException,
+)
 from app.core.security import decode_token
 from app.db.session import get_db
-
-from app.repositories.user_repository import (
-    UserRepository
-)
+from app.models.user import User
+from app.repositories.user_repository import UserRepository
 
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login"
+    tokenUrl="/api/v1/auth/token"
 )
 
 
 async def get_current_user(
-    token: str = Depends(
-        oauth2_scheme
-    ),
-    db: AsyncSession = Depends(
-        get_db
-    )
-):
-
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> User:
     try:
-
         payload = decode_token(token)
 
-        user_id = payload["sub"]
+        if payload.get("type") != "access":
+            raise UnauthorizedException(
+                "Invalid token type"
+            )
+
+        user_id = payload.get("sub")
+
+        if not user_id:
+            raise UnauthorizedException(
+                "Invalid token payload"
+            )
 
         user_repo = UserRepository(db)
 
@@ -39,79 +46,92 @@ async def get_current_user(
         )
 
         if not user:
-            raise HTTPException(
-                status_code=401,
-                detail="User not found"
+            raise UnauthorizedException(
+                "User not found"
+            )
+
+        if not user.is_active:
+            raise UnauthorizedException(
+                "Account is inactive"
             )
 
         return user
 
-    except Exception:
-
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid token"
+    except (JWTError, KeyError):
+        raise UnauthorizedException(
+            "Invalid token"
         )
 
 
-async def require_admin(
-    user=Depends(
-        get_current_user
-    )
-):
+def require_role(
+    *roles: str,
+) -> Callable:
 
-    if user.role.name not in [
+    async def role_checker(
+        user: User = Depends(get_current_user),
+    ) -> User:
+        
+        print("==============")
+        print("USER ROLE:", user.role.name)
+        print("ALLOWED:", roles)
+        print("==============")
+
+        if user.role.name not in roles:
+            raise ForbiddenException(
+                f"Required role: {', '.join(roles)}"
+            )
+
+        return user
+
+    return role_checker
+
+
+async def require_admin(
+    user: User = Depends(get_current_user),
+) -> User:
+
+    if user.role.name not in (
         "ADMIN",
-        "SUPER_ADMIN"
-    ]:
-        raise HTTPException(
-            status_code=403,
-            detail="Admin access required"
+        "SUPER_ADMIN",
+    ):
+        raise ForbiddenException(
+            "Admin access required"
         )
 
     return user
 
 
 async def require_super_admin(
-    user=Depends(
-        get_current_user
-    )
-):
+    user: User = Depends(get_current_user),
+) -> User:
 
     if user.role.name != "SUPER_ADMIN":
-        raise HTTPException(
-            status_code=403,
-            detail="Super Admin access required"
+        raise ForbiddenException(
+            "Super Admin access required"
         )
 
     return user
 
 
 async def require_consultant(
-    user=Depends(
-        get_current_user
-    )
-):
+    user: User = Depends(get_current_user),
+) -> User:
 
     if user.role.name != "CONSULTANT":
-        raise HTTPException(
-            status_code=403,
-            detail="Consultant access required"
+        raise ForbiddenException(
+            "Consultant access required"
         )
 
     return user
 
 
 async def require_client(
-    user=Depends(
-        get_current_user
-    )
-):
+    user: User = Depends(get_current_user),
+) -> User:
 
     if user.role.name != "CLIENT":
-        raise HTTPException(
-            status_code=403,
-            detail="Client access required"
+        raise ForbiddenException(
+            "Client access required"
         )
 
     return user

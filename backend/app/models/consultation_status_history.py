@@ -1,14 +1,15 @@
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import (
-    Mapped,
-    mapped_column,
-    relationship
-)
+from sqlalchemy import ForeignKey
+from sqlalchemy import String
+
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
-from app.db.mixins import UUIDMixin, TimestampMixin
+from app.db.mixins import UUIDMixin
+from app.db.mixins import TimestampMixin
 
 
 class ConsultationStatusHistory(
@@ -22,24 +23,34 @@ class ConsultationStatusHistory(
         ForeignKey(
             "consultations.id",
             ondelete="CASCADE"
-        )
+        ),
+        nullable=False,
+        index=True
     )
 
     old_status: Mapped[str] = mapped_column(
-        String(50)
+        String(50),
+        nullable=False
     )
 
     new_status: Mapped[str] = mapped_column(
-        String(50)
+        String(50),
+        nullable=False
     )
 
     changed_by: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id")
+        ForeignKey(
+            "users.id",
+            ondelete="SET NULL"
+        ),
+        nullable=True
     )
 
-    consultation = relationship(
+    consultation: Mapped["Consultation"] = relationship(
         "Consultation",
         back_populates="status_history"
     )
 
-    user = relationship("User")
+    user: Mapped["User"] = relationship(
+        "User"
+    )

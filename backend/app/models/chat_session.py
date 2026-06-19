@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import ForeignKey
+
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
@@ -8,7 +9,8 @@ from sqlalchemy.orm import (
 )
 
 from app.db.base import Base
-from app.db.mixins import UUIDMixin, TimestampMixin
+from app.db.mixins import UUIDMixin
+from app.db.mixins import TimestampMixin
 
 
 class ChatSession(
@@ -22,15 +24,17 @@ class ChatSession(
         ForeignKey(
             "users.id",
             ondelete="CASCADE"
-        )
+        ),
+        nullable=False,
+        index=True
     )
 
-    user = relationship(
+    user: Mapped["User"] = relationship(
         "User",
         back_populates="chat_sessions"
     )
 
-    messages = relationship(
+    messages: Mapped[list["ChatMessage"]] = relationship(
         "ChatMessage",
         back_populates="session",
         cascade="all, delete-orphan"

@@ -1,11 +1,13 @@
 from uuid import UUID
 from typing import Optional
+
 from sqlalchemy import (
     ForeignKey,
-    Text,
+    Integer,
     String,
-    Integer
+    Text
 )
+
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
@@ -13,7 +15,8 @@ from sqlalchemy.orm import (
 )
 
 from app.db.base import Base
-from app.db.mixins import UUIDMixin, TimestampMixin
+from app.db.mixins import UUIDMixin
+from app.db.mixins import TimestampMixin
 
 
 class ChatMessage(
@@ -27,15 +30,19 @@ class ChatMessage(
         ForeignKey(
             "chat_sessions.id",
             ondelete="CASCADE"
-        )
+        ),
+        nullable=False,
+        index=True
     )
 
     user_message: Mapped[str] = mapped_column(
-        Text
+        Text,
+        nullable=False
     )
 
     ai_response: Mapped[str] = mapped_column(
-        Text
+        Text,
+        nullable=False
     )
 
     intent: Mapped[Optional[str]] = mapped_column(
@@ -46,7 +53,7 @@ class ChatMessage(
         Integer
     )
 
-    session = relationship(
+    session: Mapped["ChatSession"] = relationship(
         "ChatSession",
         back_populates="messages"
     )

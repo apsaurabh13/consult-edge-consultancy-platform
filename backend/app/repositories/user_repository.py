@@ -1,7 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import exists
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,46 +11,64 @@ class UserRepository:
 
     def __init__(
         self,
-        db: AsyncSession
+        db: AsyncSession,
     ):
         self.db = db
 
     async def get_by_id(
-    self,
-    user_id: str
+        self,
+        user_id: str,
     ) -> Optional[User]:
 
         stmt = (
-        select(User)
-        .options(
-            selectinload(User.role)
+            select(User)
+            .options(
+                selectinload(User.role)
+            )
+            .where(
+                User.id == user_id
+            )
         )
-        .where(
-            User.id == user_id
-        )
-    )
 
         result = await self.db.execute(
-        stmt
-    )
+            stmt
+        )
 
         return result.scalar_one_or_none()
+
     async def get_by_email(
         self,
-        email: str
+        email: str,
     ) -> Optional[User]:
 
         stmt = select(User).where(
             User.email == email
         )
 
-        result = await self.db.execute(stmt)
+        result = await self.db.execute(
+            stmt
+        )
+
+        return result.scalar_one_or_none()
+
+    async def get_by_phone(
+        self,
+        phone: str,
+    ) -> Optional[User]:
+
+        stmt = select(User).where(
+            User.phone == phone
+        )
+
+        result = await self.db.execute(
+            stmt
+        )
 
         return result.scalar_one_or_none()
 
     async def exists_by_email(
         self,
-        email: str
+        email: str,
     ) -> bool:
 
         stmt = select(
@@ -60,13 +77,17 @@ class UserRepository:
             )
         )
 
-        result = await self.db.execute(stmt)
+        result = await self.db.execute(
+            stmt
+        )
 
-        return bool(result.scalar())
+        return bool(
+            result.scalar()
+        )
 
     async def create(
         self,
-        user: User
+        user: User,
     ) -> User:
 
         try:
@@ -84,7 +105,7 @@ class UserRepository:
 
     async def update(
         self,
-        user: User
+        user: User,
     ) -> User:
 
         try:
@@ -100,7 +121,7 @@ class UserRepository:
 
     async def delete(
         self,
-        user: User
+        user: User,
     ) -> None:
 
         try:

@@ -1,16 +1,11 @@
-from fastapi import APIRouter
-from fastapi import Depends
+from uuid import UUID
 
-from app.services.admin_service import (
-    AdminService
-)
+from fastapi import APIRouter, Depends
 
-from app.api.dependencies.services import (
-    get_admin_service
-)
-from app.api.dependencies.auth import (
-    require_admin
-)
+from app.api.dependencies.auth import require_admin
+from app.api.dependencies.services import get_admin_service
+from app.schemas.consultant.response import ConsultantResponse
+from app.services.admin_service import AdminService
 
 router = APIRouter(
     prefix="/admin",
@@ -19,41 +14,29 @@ router = APIRouter(
 
 
 @router.get(
-    "/consultants/pending"
+    "/consultants/pending",
+    response_model=list[ConsultantResponse],
 )
 async def pending_consultants(
     admin=Depends(require_admin),
-    service: AdminService = Depends(
-        get_admin_service
-    )
+    service: AdminService = Depends(get_admin_service),
 ):
     return await service.get_pending_consultants()
 
 
-@router.patch(
-    "/consultants/{consultant_id}/approve"
-)
+@router.patch("/consultants/{consultant_id}/approve")
 async def approve_consultant(
-    consultant_id: str,
+    consultant_id: UUID,
     admin=Depends(require_admin),
-    service: AdminService = Depends(
-        get_admin_service
-    )
+    service: AdminService = Depends(get_admin_service),
 ):
-    return await service.approve_consultant(
-        consultant_id
-    )
+    return await service.approve_consultant(consultant_id)
 
 
-@router.patch(
-    "/consultants/{consultant_id}/reject"
-)
+@router.patch("/consultants/{consultant_id}/reject")
 async def reject_consultant(
-    consultant_id: str,
-    service: AdminService = Depends(
-        get_admin_service
-    )
+    consultant_id: UUID,
+    admin=Depends(require_admin),
+    service: AdminService = Depends(get_admin_service),
 ):
-    return await service.reject_consultant(
-        consultant_id
-    )
+    return await service.reject_consultant(consultant_id)

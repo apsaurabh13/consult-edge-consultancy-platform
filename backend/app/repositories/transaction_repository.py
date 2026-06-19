@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.transaction import Transaction
@@ -81,6 +81,8 @@ class TransactionRepository:
         ).where(
             Transaction.client_id
             == client_id
+        ).order_by(
+            Transaction.created_at.desc()
         )
 
         result = await self.db.execute(
@@ -90,6 +92,51 @@ class TransactionRepository:
         return list(
             result.scalars().all()
         )
+
+    async def get_all(
+        self,
+    ) -> list[Transaction]:
+        stmt = select(Transaction).order_by(
+            Transaction.created_at.desc()
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_summary(
+        self,
+    ) -> dict:
+        revenue_stmt = select(
+            func.coalesce(func.sum(Transaction.amount), 0)
+        ).where(
+            Transaction.payment_status == "SUCCESS"
+        )
+        refund_stmt = select(
+            func.coalesce(func.sum(Transaction.amount), 0)
+        ).where(
+            Transaction.payment_status == "REFUNDED"
+        )
+        success_stmt = select(
+            func.count()
+        ).where(
+            Transaction.payment_status == "SUCCESS"
+        )
+        failed_stmt = select(
+            func.count()
+        ).where(
+            Transaction.payment_status == "FAILED"
+        )
+
+        revenue = (await self.db.execute(revenue_stmt)).scalar()
+        refunds = (await self.db.execute(refund_stmt)).scalar()
+        successful = (await self.db.execute(success_stmt)).scalar()
+        failed = (await self.db.execute(failed_stmt)).scalar()
+
+        return {
+            "total_revenue": revenue,
+            "total_refunds": refunds,
+            "successful_transactions": successful,
+            "failed_transactions": failed,
+        }
 
     async def get_by_reference(
         self,

@@ -3,6 +3,7 @@ from typing import Optional
 from sqlalchemy import Boolean
 from sqlalchemy import ForeignKey
 from sqlalchemy import String
+
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
@@ -62,17 +63,11 @@ class User(
         nullable=False
     )
 
-    is_verified: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=False
-    )
-
     # =========================
     # Relationships
     # =========================
 
-    role = relationship(
+    role: Mapped["Role"] = relationship(
         "Role",
         back_populates="users"
     )
@@ -89,17 +84,28 @@ class User(
         uselist=False
     )
 
-    consultations = relationship(
+    wallet: Mapped[Optional["Wallet"]] = relationship(
+        "Wallet",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
+
+    consultations: Mapped[list["Consultation"]] = relationship(
         "Consultation",
         back_populates="client"
     )
 
-    notifications = relationship(
+    notifications: Mapped[list["Notification"]] = relationship(
         "Notification",
         back_populates="user"
     )
 
-    chat_sessions = relationship(
+    chat_sessions: Mapped[list["ChatSession"]] = relationship(
         "ChatSession",
         back_populates="user"
     )
+    refund_requests: Mapped[list["RefundRequest"]] = relationship(
+    "RefundRequest",
+    back_populates="user"
+)

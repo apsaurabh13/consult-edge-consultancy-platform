@@ -1,13 +1,10 @@
-from fastapi import HTTPException
-from fastapi import status
-
-from app.models.consultant import (
-    Consultant
+from app.core.constants import ConsultantStatus
+from app.core.exceptions import (
+    NotFoundException,
+    ValidationException,
 )
-
-from app.schemas.consultant.response import (
-    ConsultantResponse
-)
+from app.models.consultant import Consultant
+from app.schemas.consultant.response import ConsultantResponse
 
 
 class ConsultantService:
@@ -16,132 +13,133 @@ class ConsultantService:
         self,
         consultant_repo,
         consultant_expertise_repo=None,
-        availability_repo=None
+        availability_repo=None,
     ):
         self.consultant_repo = consultant_repo
-        self.consultant_expertise_repo = (
-            consultant_expertise_repo
-        )
-        self.availability_repo = (
-            availability_repo
+        self.consultant_expertise_repo = consultant_expertise_repo
+        self.availability_repo = availability_repo
+
+    def _to_response(
+        self,
+        consultant: Consultant,
+    ) -> ConsultantResponse:
+        return ConsultantResponse(
+            id=consultant.id,
+            user_id=consultant.user_id,
+            approval_status=consultant.approval_status,
+            bio=consultant.bio,
+            years_of_experience=consultant.years_of_experience,
+            pricing_per_minute=consultant.pricing_per_minute,
+            average_rating=consultant.average_rating,
+            total_reviews=consultant.total_reviews,
+            timezone=consultant.timezone,
+            is_online=consultant.is_online,
         )
 
     async def apply(
         self,
         user,
-        data
+        data,
     ):
-
-        existing = (
-            await self.consultant_repo
-            .get_by_user_id(
-                user.id
-            )
+        existing = await self.consultant_repo.get_by_user_id(
+            user.id
         )
 
         if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Consultant application already exists"
-                )
+            raise ValidationException(
+                "Consultant application already exists"
             )
 
         consultant = Consultant(
             user_id=user.id,
-            approval_status="PENDING",
+            approval_status=ConsultantStatus.PENDING.value,
             bio=data.bio,
             years_of_experience=data.years_of_experience,
-            pricing_per_hour=data.pricing_per_hour,
-            timezone=data.timezone
+            pricing_per_minute=data.pricing_per_minute,
+            timezone=data.timezone,
         )
 
-        return await (
-            self.consultant_repo.create(
-                consultant
-            )
+        created = await self.consultant_repo.create(
+            consultant
         )
+
+        return self._to_response(created)
+
+    async def update_online_status(
+        self,
+        user,
+        is_online: bool,
+    ):
+        consultant = await self.consultant_repo.get_by_user_id(
+            user.id
+        )
+
+        if not consultant:
+            raise NotFoundException(
+                "Consultant profile not found"
+            )
+
+        consultant.is_online = is_online
+
+        updated = await self.consultant_repo.update(
+            consultant
+        )
+
+        return self._to_response(updated)
 
     async def get_my_profile(
         self,
-        user
+        user,
     ):
-
-        consultant = (
-            await self.consultant_repo
-            .get_by_user_id(
-                user.id
-            )
+        consultant = await self.consultant_repo.get_by_user_id(
+            user.id
         )
 
         if not consultant:
-            raise HTTPException(
-                status_code=404,
-                detail=(
-                    "Consultant profile not found"
-                )
+            raise NotFoundException(
+                "Consultant profile not found"
             )
 
-        return ConsultantResponse(
-            id=consultant.id,
-            user_id=consultant.user_id,
-            approval_status=(
-                consultant.approval_status
-            ),
-            bio=consultant.bio,
-            years_of_experience=(
-                consultant.years_of_experience
-            ),
-            pricing_per_hour=(
-                consultant.pricing_per_hour
-            ),
-            timezone=consultant.timezone
-        )
+        return self._to_response(consultant)
 
     async def list_consultants(
-        self
+        self,
     ):
-
-        return await (
-            self.consultant_repo
-            .get_approved()
+        consultants = (
+            await self.consultant_repo.get_approved()
         )
+
+        return [
+            self._to_response(c)
+            for c in consultants
+        ]
 
     async def get_consultant_details(
         self,
-        consultant_id
+        consultant_id,
     ):
-
-        consultant = (
-            await self.consultant_repo
-            .get_by_id(
-                consultant_id
-            )
+        consultant = await self.consultant_repo.get_by_id(
+            consultant_id
         )
 
         if not consultant:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Consultant not found"
+            raise NotFoundException(
+                "Consultant not found"
             )
 
         if (
             consultant.approval_status
-            != "APPROVED"
+            != ConsultantStatus.APPROVED.value
         ):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Consultant not found"
+            raise NotFoundException(
+                "Consultant not found"
             )
 
         expertise = []
 
-        if (
-            self.consultant_expertise_repo
-        ):
+        if self.consultant_expertise_repo:
             expertise = (
-                await self
-                .consultant_expertise_repo
+                await self.consultant_expertise_repo
                 .get_by_consultant_id(
                     consultant.id
                 )
@@ -151,15 +149,16 @@ class ConsultantService:
 
         if self.availability_repo:
             availability = (
-                await self
-                .availability_repo
+                await self.availability_repo
                 .get_by_consultant_id(
                     consultant.id
                 )
             )
 
         return {
-            "consultant": consultant,
+            "consultant": self._to_response(
+                consultant
+            ),
             "expertise": expertise,
-            "availability": availability
+            "availability": availability,
         }

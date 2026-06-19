@@ -1,7 +1,11 @@
-from fastapi import HTTPException
-from fastapi import status
+from uuid import UUID
 
 from app.core.constants import ConsultantStatus
+from app.core.exceptions import (
+    NotFoundException,
+    ValidationException,
+)
+from app.schemas.consultant.response import ConsultantResponse
 
 
 class AdminService:
@@ -10,119 +14,82 @@ class AdminService:
         self,
         consultant_repo,
         user_repo,
-        role_repo
+        role_repo,
+        notification_service,
     ):
         self.consultant_repo = consultant_repo
         self.user_repo = user_repo
         self.role_repo = role_repo
+        self.notification_service = notification_service
 
-    async def get_pending_consultants(
-        self
-    ):
-        return await self.consultant_repo.get_pending()
+    async def get_pending_consultants(self):
+        consultants = await self.consultant_repo.get_pending()
+        return [
+            ConsultantResponse(
+                id=c.id,
+                user_id=c.user_id,
+                approval_status=c.approval_status,
+                bio=c.bio,
+                years_of_experience=c.years_of_experience,
+                pricing_per_minute=c.pricing_per_minute,
+                average_rating=c.average_rating,
+                total_reviews=c.total_reviews,
+                timezone=c.timezone,
+            )
+            for c in consultants
+        ]
 
-    async def approve_consultant(
-        self,
-        consultant_id
-    ):
-
-        consultant = await self.consultant_repo.get_by_id(
-            consultant_id
-        )
-
+    async def approve_consultant(self, consultant_id: UUID):
+        consultant = await self.consultant_repo.get_by_id(consultant_id)
         if not consultant:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Consultant not found"
+            raise NotFoundException("Consultant not found")
+
+        if consultant.approval_status == ConsultantStatus.APPROVED.value:
+            raise ValidationException("Consultant already approved")
+
+        if consultant.approval_status == ConsultantStatus.REJECTED.value:
+            raise ValidationException(
+                "Rejected consultant cannot be approved"
             )
 
-        if consultant.approval_status == ConsultantStatus.APPROVED:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Consultant already approved"
-            )
+        consultant.approval_status = ConsultantStatus.APPROVED.value
+        await self.consultant_repo.update(consultant)
 
-        if consultant.approval_status == ConsultantStatus.REJECTED:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Rejected consultant cannot be approved"
-            )
-
-        consultant.approval_status = (
-            ConsultantStatus.APPROVED
-        )
-
-        await self.consultant_repo.update(
-            consultant
-        )
-
-        consultant_role = (
-            await self.role_repo.get_by_name(
-                "CONSULTANT"
-            )
-        )
-
+        consultant_role = await self.role_repo.get_by_name("CONSULTANT")
         if not consultant_role:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="CONSULTANT role not found"
-            )
+            raise ValidationException("CONSULTANT role not found")
 
-        user = await self.user_repo.get_by_id(
-            consultant.user_id
-        )
-
+        user = await self.user_repo.get_by_id(str(consultant.user_id))
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
+            raise NotFoundException("User not found")
 
         user.role_id = consultant_role.id
+        await self.user_repo.update(user)
 
-        await self.user_repo.update(
-            user
+        await self.notification_service.notify_consultant_approved(
+            user_id=consultant.user_id,
         )
 
-        return {
-            "message": "Consultant approved successfully"
-        }
+        return {"message": "Consultant approved successfully"}
 
-    async def reject_consultant(
-        self,
-        consultant_id
-    ):
-
-        consultant = await self.consultant_repo.get_by_id(
-            consultant_id
-        )
-
+    async def reject_consultant(self, consultant_id: UUID):
+        consultant = await self.consultant_repo.get_by_id(consultant_id)
         if not consultant:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Consultant not found"
+            raise NotFoundException("Consultant not found")
+
+        if consultant.approval_status == ConsultantStatus.REJECTED.value:
+            raise ValidationException("Consultant already rejected")
+
+        if consultant.approval_status == ConsultantStatus.APPROVED.value:
+            raise ValidationException(
+                "Approved consultant cannot be rejected"
             )
 
-        if consultant.approval_status == ConsultantStatus.REJECTED:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Consultant already rejected"
-            )
+        consultant.approval_status = ConsultantStatus.REJECTED.value
+        await self.consultant_repo.update(consultant)
 
-        if consultant.approval_status == ConsultantStatus.APPROVED:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Approved consultant cannot be rejected"
-            )
-
-        consultant.approval_status = (
-            ConsultantStatus.REJECTED
+        await self.notification_service.notify_consultant_rejected(
+            user_id=consultant.user_id,
         )
 
-        await self.consultant_repo.update(
-            consultant
-        )
-
-        return {
-            "message": "Consultant rejected successfully"
-        }
+        return {"message": "Consultant rejected successfully"}

@@ -51,7 +51,7 @@ async def seed_admins(
                 ),
                 role_id=super_admin_role.id,
                 is_active=True,
-                is_verified=True
+                
             )
         )
 
@@ -78,7 +78,7 @@ async def seed_admins(
                 ),
                 role_id=admin_role.id,
                 is_active=True,
-                is_verified=True
+               
             )
         )
 
