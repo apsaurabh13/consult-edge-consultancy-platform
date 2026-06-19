@@ -1,19 +1,18 @@
 from uuid import UUID
 from typing import Optional
-from sqlalchemy import (
-    Boolean,
-    ForeignKey,
-    Integer,
-    Text
-)
-from sqlalchemy.orm import (
-    Mapped,
-    mapped_column,
-    relationship
-)
+
+from sqlalchemy import Boolean
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import Text
+
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
-from app.db.mixins import UUIDMixin, TimestampMixin
+from app.db.mixins import UUIDMixin
+from app.db.mixins import TimestampMixin
 
 
 class Review(
@@ -24,41 +23,56 @@ class Review(
     __tablename__ = "reviews"
 
     consultant_id: Mapped[UUID] = mapped_column(
-        ForeignKey("consultants.id")
+        ForeignKey(
+            "consultants.id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
     )
 
     client_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id")
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
     )
 
     consultation_id: Mapped[UUID] = mapped_column(
         ForeignKey(
-            "consultations.id"
+            "consultations.id",
+            ondelete="CASCADE"
         ),
-        unique=True
+        unique=True,
+        nullable=False
     )
 
     rating: Mapped[int] = mapped_column(
-        Integer
+        Integer,
+        nullable=False
     )
 
     comment: Mapped[Optional[str]] = mapped_column(
-    Text
-)
+        Text,
+        nullable=True
+    )
 
     is_hidden: Mapped[bool] = mapped_column(
         Boolean,
-        default=False
+        default=False,
+        nullable=False
     )
 
-    consultant = relationship(
+    consultant: Mapped["Consultant"] = relationship(
         "Consultant",
         back_populates="reviews"
     )
 
-    consultation = relationship(
+    consultation: Mapped["Consultation"] = relationship(
         "Consultation",
         back_populates="review"
     )
 
-    client = relationship("User")
+    client: Mapped["User"] = relationship(
+        "User"
+    )

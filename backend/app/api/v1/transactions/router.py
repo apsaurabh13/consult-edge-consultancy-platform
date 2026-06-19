@@ -1,19 +1,14 @@
 from uuid import UUID
 
-from fastapi import APIRouter
-from fastapi import Depends
+from fastapi import APIRouter, Depends
 
-from app.api.dependencies.auth import (
-    get_current_user
+from app.api.dependencies.auth import get_current_user, require_admin
+from app.api.dependencies.services import get_transaction_service
+from app.schemas.transaction.response import (
+    TransactionResponse,
+    TransactionSummaryResponse,
 )
-
-from app.api.dependencies.services import (
-    get_transaction_service
-)
-
-from app.schemas.transaction.request import (
-    CreateTransactionRequest
-)
+from app.services.transaction_service import TransactionService
 
 router = APIRouter(
     prefix="/transactions",
@@ -21,59 +16,29 @@ router = APIRouter(
 )
 
 
-@router.post("")
-async def create_transaction(
-    data: CreateTransactionRequest,
-    user=Depends(
-        get_current_user
-    ),
-    service=Depends(
-        get_transaction_service
-    )
+@router.get("", response_model=list[TransactionResponse])
+async def get_transactions(
+    current_user=Depends(get_current_user),
+    service: TransactionService = Depends(get_transaction_service),
 ):
-    return await service.create_transaction(
-        user,
-        data
-    )
+    return await service.get_transactions(current_user)
 
 
-@router.get("/me")
-async def get_my_transactions(
-    user=Depends(
-        get_current_user
-    ),
-    service=Depends(
-        get_transaction_service
-    )
+@router.get("/summary", response_model=TransactionSummaryResponse)
+async def get_transaction_summary(
+    current_user=Depends(require_admin),
+    service: TransactionService = Depends(get_transaction_service),
 ):
-    return await service.get_my_transactions(
-        user
-    )
+    return await service.get_summary(current_user)
 
 
-@router.patch(
-    "/{transaction_id}/success"
-)
-async def mark_success(
+@router.get("/{transaction_id}", response_model=TransactionResponse)
+async def get_transaction(
     transaction_id: UUID,
-    service=Depends(
-        get_transaction_service
-    )
+    current_user=Depends(get_current_user),
+    service: TransactionService = Depends(get_transaction_service),
 ):
-    return await service.mark_success(
-        transaction_id
-    )
-
-
-@router.patch(
-    "/{transaction_id}/failed"
-)
-async def mark_failed(
-    transaction_id: UUID,
-    service=Depends(
-        get_transaction_service
-    )
-):
-    return await service.mark_failed(
-        transaction_id
+    return await service.get_transaction_by_id(
+        transaction_id,
+        current_user,
     )

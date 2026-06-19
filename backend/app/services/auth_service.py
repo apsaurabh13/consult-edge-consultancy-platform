@@ -1,21 +1,21 @@
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException
-from fastapi import status
-
+from app.core.config import settings
+from app.core.exceptions import (
+    NotFoundException,
+    UnauthorizedException,
+    ValidationException,
+)
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
     hash_password,
-    verify_password
+    verify_password,
 )
-
 from app.models.user import User
 from app.models.user_session import UserSession
-
+from app.models.wallets import Wallet
 from app.schemas.auth.token import TokenResponse
 
 
@@ -25,25 +25,31 @@ class AuthService:
         self,
         user_repo,
         session_repo,
-        role_repo
+        role_repo,
+        wallet_repo,
     ):
         self.user_repo = user_repo
         self.session_repo = session_repo
         self.role_repo = role_repo
+        self.wallet_repo = wallet_repo
 
-    async def register(
-        self,
-        data
-    ):
-
+    async def register(self, data):
         existing_user = await self.user_repo.get_by_email(
             data.email
         )
 
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already exists"
+            raise ValidationException(
+                "Email already exists"
+            )
+
+        existing_phone = await self.user_repo.get_by_phone(
+            data.phone
+        )
+
+        if existing_phone:
+            raise ValidationException(
+                "Phone number already exists"
             )
 
         client_role = await self.role_repo.get_by_name(
@@ -51,9 +57,8 @@ class AuthService:
         )
 
         if not client_role:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="CLIENT role not found"
+            raise ValidationException(
+                "CLIENT role not found"
             )
 
         user = User(
@@ -64,17 +69,28 @@ class AuthService:
             password_hash=hash_password(
                 data.password
             ),
-            role_id=client_role.id
+            role_id=client_role.id,
         )
 
-        return await self.user_repo.create(
+        created_user = await self.user_repo.create(
             user
         )
+
+        wallet = Wallet(
+            user_id=created_user.id,
+            balance=0,
+        )
+
+        await self.wallet_repo.create(
+            wallet
+        )
+
+        return created_user
 
     async def login(
         self,
         email: str,
-        password: str
+        password: str,
     ) -> TokenResponse:
 
         user = await self.user_repo.get_by_email(
@@ -82,18 +98,21 @@ class AuthService:
         )
 
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid credentials"
+            raise UnauthorizedException(
+                "Invalid credentials"
+            )
+
+        if not user.is_active:
+            raise UnauthorizedException(
+                "Account is inactive"
             )
 
         if not verify_password(
             password,
-            user.password_hash
+            user.password_hash,
         ):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid credentials"
+            raise UnauthorizedException(
+                "Invalid credentials"
             )
 
         access_token = create_access_token(
@@ -109,7 +128,10 @@ class AuthService:
             refresh_token=refresh_token,
             expires_at=datetime.now(
                 timezone.utc
-            ) + timedelta(days=7)
+            )
+            + timedelta(
+                days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+            ),
         )
 
         await self.session_repo.create(
@@ -119,22 +141,26 @@ class AuthService:
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
-            token_type="bearer"
+            token_type="bearer",
         )
 
     async def refresh_access_token(
         self,
-        refresh_token: str
+        refresh_token: str,
     ):
+        try:
+            decoded_token = decode_token(
+                refresh_token
+            )
 
-        decoded_token = decode_token(
-            refresh_token
-        )
+        except Exception:
+            raise UnauthorizedException(
+                "Invalid token"
+            )
 
         if decoded_token["type"] != "refresh":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type"
+            raise UnauthorizedException(
+                "Invalid token type"
             )
 
         session = await self.session_repo.get_active_session(
@@ -142,9 +168,8 @@ class AuthService:
         )
 
         if not session:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session not found"
+            raise UnauthorizedException(
+                "Session not found or revoked"
             )
 
         access_token = create_access_token(
@@ -153,22 +178,20 @@ class AuthService:
 
         return {
             "access_token": access_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
         }
 
     async def logout(
         self,
-        refresh_token: str
+        refresh_token: str,
     ):
-
         session = await self.session_repo.get_by_refresh_token(
             refresh_token
         )
 
         if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not found"
+            raise NotFoundException(
+                "Session not found"
             )
 
         await self.session_repo.revoke(

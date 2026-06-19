@@ -6,8 +6,49 @@ class UserRole(str, Enum):
     CONSULTANT = "CONSULTANT"
     CLIENT = "CLIENT"
     SUPER_ADMIN = "SUPER_ADMIN"
-    
+
+
 class ConsultantStatus(str, Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+
+
+class ConsultationStatus(str, Enum):
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    REFUND_REQUESTED = "REFUND_REQUESTED"
+    REFUNDED = "REFUNDED"
+
+
+class RefundStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class PaymentStatus(str, Enum):
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    REFUNDED = "REFUNDED"
+
+
+class TransactionType(str, Enum):
+    CREDIT = "CREDIT"
+    DEBIT = "DEBIT"
+    REFUND = "REFUND"
+
+
+class WalletReferenceType(str, Enum):
+    TOPUP = "TOPUP"
+    CONSULTATION = "CONSULTATION"
+    REFUND = "REFUND"
+
+
+class NotificationType(str, Enum):
+    CONSULTATION = "CONSULTATION"
+    PAYMENT = "PAYMENT"
+    REFUND = "REFUND"
+    SYSTEM = "SYSTEM"

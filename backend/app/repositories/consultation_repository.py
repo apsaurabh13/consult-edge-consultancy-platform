@@ -111,6 +111,19 @@ class ConsultationRepository:
             result.scalars().all()
         )
 
+    async def get_history_by_client_id(
+        self,
+        client_id: UUID,
+    ) -> list[Consultation]:
+        stmt = (
+            select(Consultation)
+            .where(Consultation.client_id == client_id)
+            .where(Consultation.status == "COMPLETED")
+            .order_by(Consultation.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def update(
         self,
         consultation: Consultation

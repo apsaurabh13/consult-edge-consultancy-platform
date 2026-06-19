@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy import Boolean
 from sqlalchemy import DateTime
@@ -21,7 +22,7 @@ class UserSession(
 ):
     __tablename__ = "user_sessions"
 
-    user_id: Mapped[str] = mapped_column(
+    user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True
@@ -44,7 +45,7 @@ class UserSession(
         nullable=False
     )
 
-    user = relationship(
+    user: Mapped["User"] = relationship(
         "User",
         back_populates="sessions"
     )
