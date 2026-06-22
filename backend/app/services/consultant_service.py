@@ -19,22 +19,29 @@ class ConsultantService:
         self.consultant_expertise_repo = consultant_expertise_repo
         self.availability_repo = availability_repo
 
+    
     def _to_response(
         self,
         consultant: Consultant,
     ) -> ConsultantResponse:
         return ConsultantResponse(
-            id=consultant.id,
-            user_id=consultant.user_id,
-            approval_status=consultant.approval_status,
-            bio=consultant.bio,
-            years_of_experience=consultant.years_of_experience,
-            pricing_per_minute=consultant.pricing_per_minute,
-            average_rating=consultant.average_rating,
-            total_reviews=consultant.total_reviews,
-            timezone=consultant.timezone,
-            is_online=consultant.is_online,
-        )
+        id=consultant.id,
+        approval_status=consultant.approval_status,
+        user={
+            "id": consultant.user.id,
+            "first_name": consultant.user.first_name,
+            "last_name": consultant.user.last_name,
+            "email": consultant.user.email,
+        },
+        bio=consultant.bio,
+        years_of_experience=consultant.years_of_experience,
+        pricing_per_minute=consultant.pricing_per_minute,
+        average_rating=consultant.average_rating,
+        total_reviews=consultant.total_reviews,
+        total_consultations=consultant.total_consultations,
+        timezone=consultant.timezone,
+        is_online=consultant.is_online,
+    )
 
     async def apply(
         self,

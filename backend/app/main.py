@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
-
+from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers import api_router
 from app.core.exceptions import AppException
 from app.core.exception_handlers import (
@@ -11,7 +11,15 @@ from app.core.exception_handlers import (
 app = FastAPI(
     title="Consultancy Platform API"
 )
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_exception_handler(
     AppException,
     app_exception_handler,
