@@ -15,13 +15,13 @@ class ConsultantStatus(str, Enum):
 
 
 class ConsultationStatus(str, Enum):
-    PENDING = "PENDING"
+    REQUESTED = "REQUESTED"
     ACTIVE = "ACTIVE"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
+    REJECTED = "REJECTED"
     REFUND_REQUESTED = "REFUND_REQUESTED"
     REFUNDED = "REFUNDED"
-
 
 class RefundStatus(str, Enum):
     PENDING = "PENDING"

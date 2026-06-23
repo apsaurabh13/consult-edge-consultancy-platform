@@ -26,16 +26,23 @@ class AdminService:
         consultants = await self.consultant_repo.get_pending()
         return [
             ConsultantResponse(
-                id=c.id,
-                user_id=c.user_id,
-                approval_status=c.approval_status,
-                bio=c.bio,
-                years_of_experience=c.years_of_experience,
-                pricing_per_minute=c.pricing_per_minute,
-                average_rating=c.average_rating,
-                total_reviews=c.total_reviews,
-                timezone=c.timezone,
-            )
+    id=c.id,
+    approval_status=c.approval_status,
+    user={
+        "id": c.user.id,
+        "first_name": c.user.first_name,
+        "last_name": c.user.last_name,
+        "email": c.user.email,
+    },
+    bio=c.bio,
+    years_of_experience=c.years_of_experience,
+    pricing_per_minute=c.pricing_per_minute,
+    average_rating=c.average_rating,
+    total_reviews=c.total_reviews,
+    total_consultations=c.total_consultations,
+    timezone=c.timezone,
+    is_online=c.is_online,
+)
             for c in consultants
         ]
 

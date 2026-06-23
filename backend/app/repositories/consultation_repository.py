@@ -147,3 +147,23 @@ class ConsultationRepository:
         )
 
         await self.db.commit()
+        
+    async def get_active_by_consultant(
+    self,
+    consultant_id: UUID,
+    ):
+        stmt = (
+        select(Consultation)
+        .where(
+            Consultation.consultant_id == consultant_id
+        )
+        .where(
+            Consultation.status.in_(
+                ["REQUESTED", "ACTIVE"]
+            )
+        )
+    )
+
+        result = await self.db.execute(stmt)
+
+        return result.scalar_one_or_none()

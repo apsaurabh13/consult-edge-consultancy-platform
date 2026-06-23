@@ -114,7 +114,6 @@ def get_availability_service(
 def get_consultation_service(
     consultation_repo=Depends(get_consultation_repository),
     consultant_repo=Depends(get_consultant_repository),
-    availability_repo=Depends(get_availability_repository),
     wallet_repo=Depends(get_wallet_repository),
     wallet_service=Depends(get_wallet_service),
     transaction_repo=Depends(get_transaction_repository),
@@ -124,7 +123,6 @@ def get_consultation_service(
     return ConsultationService(
         consultation_repo,
         consultant_repo,
-        availability_repo,
         wallet_repo,
         wallet_service,
         transaction_repo,
