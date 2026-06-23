@@ -30,7 +30,6 @@ class ConsultationService:
         self,
         consultation_repo,
         consultant_repo,
-        availability_repo,
         wallet_repo,
         wallet_service,
         transaction_repo,
@@ -39,7 +38,6 @@ class ConsultationService:
     ):
         self.consultation_repo = consultation_repo
         self.consultant_repo = consultant_repo
-        self.availability_repo = availability_repo
         self.wallet_repo = wallet_repo
         self.wallet_service = wallet_service
         self.transaction_repo = transaction_repo
@@ -61,6 +59,8 @@ class ConsultationService:
             actual_end_time=consultation.actual_end_time,
             duration_minutes=consultation.duration_minutes,
             consultant_rate=consultation.consultant_rate,
+            requested_amount=consultation.requested_amount,
+            allocated_minutes=consultation.allocated_minutes,
             amount_charged=consultation.amount_charged,
             problem_statement=consultation.problem_statement,
             created_at=consultation.created_at,
@@ -81,21 +81,33 @@ class ConsultationService:
         )
         await self.status_history_repo.create(history)
 
-    async def book_consultation(self, user, data):
+    async def book_consultation(
+        self,
+        user,
+        data,
+    ):
         if user.role.name != "CLIENT":
             raise ForbiddenException(
                 "Only clients can book consultations"
             )
 
-        wallet = await self.wallet_repo.get_by_user_id(user.id)
+        wallet = await self.wallet_repo.get_by_user_id(
+            user.id
+        )
+
         if not wallet:
             raise ValidationException(
-                "Wallet not found. Please contact support."
+                "Wallet not found"
             )
 
-        consultant = await self.consultant_repo.get_by_id(data.consultant_id)
+        consultant = await self.consultant_repo.get_by_id(
+            data.consultant_id
+        )
+
         if not consultant:
-            raise NotFoundException("Consultant not found")
+            raise NotFoundException(
+                "Consultant not found"
+            )
 
         if consultant.user_id == user.id:
             raise ValidationException(
@@ -105,69 +117,77 @@ class ConsultationService:
         if consultant.approval_status != "APPROVED":
             raise ConsultantNotApprovedException()
 
-        if data.scheduled_start >= data.scheduled_end:
+        if not consultant.is_online:
             raise ValidationException(
-                "scheduled_end must be greater than scheduled_start"
+                "Consultant is offline"
             )
 
-        booking_day = data.scheduled_start.weekday() + 1
-        booking_start_time = data.scheduled_start.time()
-        booking_end_time = data.scheduled_end.time()
-
-        availability_slots = (
-            await self.availability_repo.get_by_consultant_id(
+        active_consultation = (
+            await self.consultation_repo.get_active_by_consultant(
                 consultant.id
             )
         )
 
-        if availability_slots:
-            is_available = False
-            for slot in availability_slots:
-                if slot.day_of_week == booking_day:
-                    if (
-                        slot.start_time <= booking_start_time
-                        and slot.end_time >= booking_end_time
-                    ):
-                        is_available = True
-                        break
-
-            if not is_available:
-                raise ValidationException(
-                    "Selected time is not available"
-                )
-
-        existing_bookings = (
-            await self.consultation_repo.get_consultant_bookings(
-                consultant.id
+        if active_consultation:
+            raise ValidationException(
+                "Consultant is currently busy"
             )
+
+        if consultant.pricing_per_minute <= 0:
+            raise ValidationException(
+                "Invalid consultant pricing"
+            )
+
+        allocated_minutes = int(
+            Decimal(data.budget)
+            // consultant.pricing_per_minute
         )
 
-        for booking in existing_bookings:
-            if booking.status == ConsultationStatus.CANCELLED.value:
-                continue
-            if (
-                data.scheduled_start < booking.scheduled_end
-                and data.scheduled_end > booking.scheduled_start
-            ):
-                raise ValidationException("Slot already booked")
+        if allocated_minutes < 1:
+            raise ValidationException(
+                "Budget is too low for this consultant"
+            )
+
+        amount_paise = rupees_to_paise(
+            Decimal(data.budget)
+        )
+
+        if wallet.balance < amount_paise:
+            raise InsufficientBalanceException()
 
         consultation = Consultation(
             client_id=user.id,
             consultant_id=consultant.id,
-            scheduled_start=data.scheduled_start,
-            scheduled_end=data.scheduled_end,
-            problem_statement=data.problem_statement,
-            status=ConsultationStatus.PENDING.value,
+            status=ConsultationStatus.REQUESTED.value,
             consultant_rate=consultant.pricing_per_minute,
+            requested_amount=Decimal(data.budget),
+            allocated_minutes=allocated_minutes,
             amount_charged=Decimal("0"),
+            problem_statement=data.problem_statement,
+            scheduled_start=None,
+            scheduled_end=None,
         )
 
-        created = await self.consultation_repo.create(consultation)
+        created = await self.consultation_repo.create(
+            consultation
+        )
+
+        await self.wallet_service.debit_wallet(
+            wallet=wallet,
+            amount_paise=amount_paise,
+            reference_type=WalletReferenceType.CONSULTATION,
+            reference_id=str(created.id),
+            description=(
+                f"Consultation booking for "
+                f"{allocated_minutes} minutes"
+            ),
+            user_id=user.id,
+        )
 
         await self._record_status_change(
-            created,
+            consultation=created,
             old_status="",
-            new_status=ConsultationStatus.PENDING.value,
+            new_status=ConsultationStatus.REQUESTED.value,
             changed_by=user.id,
         )
 
@@ -177,7 +197,9 @@ class ConsultationService:
             consultation_id=created.id,
         )
 
-        return self._to_response(created)
+        return self._to_response(
+            created
+        )
 
     async def get_consultations(self, user):
         if user.role.name == "CLIENT":
@@ -251,9 +273,10 @@ class ConsultationService:
             )
 
         if consultation.status in (
-            ConsultationStatus.COMPLETED.value,
-            ConsultationStatus.CANCELLED.value,
-            ConsultationStatus.REFUNDED.value,
+             ConsultationStatus.COMPLETED.value,
+             ConsultationStatus.CANCELLED.value,
+             ConsultationStatus.REJECTED.value,
+             ConsultationStatus.REFUNDED.value,
         ):
             raise ValidationException(
                 "Consultation cannot be cancelled in current status"
@@ -290,34 +313,48 @@ class ConsultationService:
         consultation_id: UUID,
         user,
     ):
-        consultant = await self.consultant_repo.get_by_user_id(user.id)
+        consultant = await self.consultant_repo.get_by_user_id(
+            user.id
+        )
+
         if not consultant:
             raise ForbiddenException(
                 "Only consultants can start consultations"
             )
 
-        consultation = await self.consultation_repo.get_by_id(consultation_id)
+        consultation = await self.consultation_repo.get_by_id(
+            consultation_id
+        )
+
         if not consultation:
-            raise NotFoundException("Consultation not found")
+            raise NotFoundException(
+                "Consultation not found"
+            )
 
         if consultation.consultant_id != consultant.id:
             raise ForbiddenException(
                 "You can only start your own consultations"
             )
 
-        if consultation.status != ConsultationStatus.PENDING.value:
+        if consultation.status != ConsultationStatus.REQUESTED.value:
             raise ValidationException(
-                "Only pending consultations can be started"
+                "Only requested consultations can be started"
             )
 
         old_status = consultation.status
-        consultation.status = ConsultationStatus.ACTIVE.value
-        consultation.actual_start_time = datetime.now(timezone.utc)
 
-        await self.consultation_repo.update(consultation)
+        consultation.status = ConsultationStatus.ACTIVE.value
+
+        consultation.actual_start_time = datetime.now(
+            timezone.utc
+        )
+
+        await self.consultation_repo.update(
+            consultation
+        )
 
         await self._record_status_change(
-            consultation,
+            consultation=consultation,
             old_status=old_status,
             new_status=ConsultationStatus.ACTIVE.value,
             changed_by=user.id,
@@ -329,22 +366,32 @@ class ConsultationService:
             consultation_id=consultation.id,
         )
 
-        return self._to_response(consultation)
+        return self._to_response(
+            consultation
+        )
 
     async def end_consultation(
         self,
         consultation_id: UUID,
         user,
     ):
-        consultant = await self.consultant_repo.get_by_user_id(user.id)
+        consultant = await self.consultant_repo.get_by_user_id(
+            user.id
+        )
+
         if not consultant:
             raise ForbiddenException(
                 "Only consultants can end consultations"
             )
 
-        consultation = await self.consultation_repo.get_by_id(consultation_id)
+        consultation = await self.consultation_repo.get_by_id(
+            consultation_id
+        )
+
         if not consultation:
-            raise NotFoundException("Consultation not found")
+            raise NotFoundException(
+                "Consultation not found"
+            )
 
         if consultation.consultant_id != consultant.id:
             raise ForbiddenException(
@@ -362,37 +409,17 @@ class ConsultationService:
             )
 
         now = datetime.now(timezone.utc)
-        duration_seconds = (now - consultation.actual_start_time).total_seconds()
-        duration_minutes = max(1, math.ceil(duration_seconds / 60))
 
-        amount_charged = (
-            Decimal(duration_minutes) * consultation.consultant_rate
-        )
-        amount_paise = rupees_to_paise(amount_charged)
+        duration_minutes = consultation.allocated_minutes
 
-        wallet = await self.wallet_repo.get_by_user_id(
-            consultation.client_id
-        )
-        if not wallet:
-            raise NotFoundException("Client wallet not found")
-
-        if wallet.balance < amount_paise:
-            raise InsufficientBalanceException()
+        amount_charged = consultation.requested_amount
 
         old_status = consultation.status
+
         consultation.actual_end_time = now
         consultation.duration_minutes = duration_minutes
         consultation.amount_charged = amount_charged
         consultation.status = ConsultationStatus.COMPLETED.value
-
-        await self.wallet_service.debit_wallet(
-            wallet=wallet,
-            amount_paise=amount_paise,
-            reference_type=WalletReferenceType.CONSULTATION,
-            reference_id=str(consultation.id),
-            description=f"Consultation charge for {consultation.id}",
-            user_id=consultation.client_id,
-        )
 
         transaction = Transaction(
             consultation_id=consultation.id,
@@ -402,15 +429,23 @@ class ConsultationService:
             payment_status=PaymentStatus.SUCCESS.value,
             transaction_reference=str(uuid.uuid4()),
         )
-        await self.transaction_repo.create(transaction)
 
-        await self.consultation_repo.update(consultation)
+        await self.transaction_repo.create(
+            transaction
+        )
+
+        await self.consultation_repo.update(
+            consultation
+        )
 
         consultant.total_consultations += 1
-        await self.consultant_repo.update(consultant)
+
+        await self.consultant_repo.update(
+            consultant
+        )
 
         await self._record_status_change(
-            consultation,
+            consultation=consultation,
             old_status=old_status,
             new_status=ConsultationStatus.COMPLETED.value,
             changed_by=user.id,
@@ -422,4 +457,90 @@ class ConsultationService:
             consultation_id=consultation.id,
         )
 
-        return self._to_response(consultation)
+        return self._to_response(
+            consultation
+        )
+
+    async def reject_consultation(
+        self,
+        consultation_id: UUID,
+        user,
+    ):
+        consultant = await self.consultant_repo.get_by_user_id(
+            user.id
+        )
+
+        if not consultant:
+            raise ForbiddenException(
+                "Only consultants can reject consultations"
+            )
+
+        consultation = await self.consultation_repo.get_by_id(
+            consultation_id
+        )
+
+        if not consultation:
+            raise NotFoundException(
+                "Consultation not found"
+            )
+
+        if consultation.consultant_id != consultant.id:
+            raise ForbiddenException(
+                "You can only reject your own consultations"
+            )
+
+        if consultation.status != ConsultationStatus.REQUESTED.value:
+            raise ValidationException(
+                "Only requested consultations can be rejected"
+            )
+
+        wallet = await self.wallet_repo.get_by_user_id(
+            consultation.client_id
+        )
+
+        if not wallet:
+            raise NotFoundException(
+                "Client wallet not found"
+            )
+
+        amount_paise = rupees_to_paise(
+            consultation.requested_amount
+        )
+
+        await self.wallet_service.credit_wallet(
+            wallet=wallet,
+            amount_paise=amount_paise,
+            reference_type=WalletReferenceType.REFUND,
+            reference_id=str(consultation.id),
+            description="Consultation rejected refund",
+            user_id=consultation.client_id,
+        )
+
+        old_status = consultation.status
+
+        consultation.status = ConsultationStatus.REJECTED.value
+
+        await self.consultation_repo.update(
+            consultation
+        )
+
+        await self._record_status_change(
+            consultation=consultation,
+            old_status=old_status,
+            new_status=ConsultationStatus.REJECTED.value,
+            changed_by=user.id,
+        )
+
+        if hasattr(
+            self.notification_service,
+            "notify_consultation_rejected"
+        ):
+            await self.notification_service.notify_consultation_rejected(
+                client_id=consultation.client_id,
+                consultant_user_id=consultant.user_id,
+                consultation_id=consultation.id,
+            )
+
+        return {
+            "message": "Consultation rejected and refunded"
+        }

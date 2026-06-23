@@ -75,12 +75,7 @@ async def get_my_profile(
     response_model=list[ConsultantResponse],
 )
 async def list_consultants(
-    current_user=Depends(
-        require_role(
-            "CLIENT",
-            "ADMIN",
-        )
-    ),
+    
     service: ConsultantService = Depends(
         get_consultant_service
     ),

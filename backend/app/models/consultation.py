@@ -50,16 +50,16 @@ class Consultation(
 
     status: Mapped[str] = mapped_column(
         String(50),
-        default="PENDING",
+        default="REQUESTED",
         nullable=False
     )
-    # PENDING
-    # ACTIVE
-    # COMPLETED
-    # CANCELLED
-    # REFUND_REQUESTED
-    # REFUNDED
-
+# REQUESTED
+# ACTIVE
+# COMPLETED
+# CANCELLED
+# REJECTED
+# REFUND_REQUESTED
+# REFUNDED
     scheduled_start: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
@@ -141,4 +141,16 @@ class Consultation(
         "ConsultationStatusHistory",
         back_populates="consultation",
         cascade="all, delete-orphan"
+    )
+    
+    requested_amount: Mapped[Decimal] = mapped_column(
+    Numeric(10, 2),
+    nullable=False,
+    default=0
+    )
+
+    allocated_minutes: Mapped[int] = mapped_column(
+    Integer,
+    nullable=False,
+    default=0
     )

@@ -100,6 +100,25 @@ class NotificationService:
             notification_type=NotificationType.CONSULTATION,
         )
 
+    async def notify_consultation_rejected(
+        self,
+        client_id: UUID,
+        consultant_user_id: UUID,
+        consultation_id: UUID,
+    ):
+        await self.create_notification(
+            user_id=client_id,
+            title="Consultation Rejected",
+            message=f"Your consultation {consultation_id} was rejected and your wallet has been refunded.",
+            notification_type=NotificationType.CONSULTATION,
+        )
+        await self.create_notification(
+            user_id=consultant_user_id,
+            title="Consultation Rejected",
+            message=f"You rejected consultation {consultation_id}.",
+            notification_type=NotificationType.CONSULTATION,
+        )
+
     async def notify_consultant_approved(
         self,
         user_id: UUID,

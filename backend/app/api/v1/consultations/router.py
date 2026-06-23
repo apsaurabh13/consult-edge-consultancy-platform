@@ -97,3 +97,16 @@ async def end_consultation(
         consultation_id,
         current_user,
     )
+
+@router.post(
+    "/{consultation_id}/reject",
+)
+async def reject_consultation(
+    consultation_id: UUID,
+    current_user=Depends(require_consultant),
+    service: ConsultationService = Depends(get_consultation_service),
+):
+    return await service.reject_consultation(
+        consultation_id,
+        current_user,
+    )
