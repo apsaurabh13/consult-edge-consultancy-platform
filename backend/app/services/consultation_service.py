@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID
+from datetime import timedelta
 
 from app.core.constants import (
     ConsultationStatus,
@@ -35,6 +36,7 @@ class ConsultationService:
         transaction_repo,
         status_history_repo,
         notification_service,
+        chat_service
     ):
         self.consultation_repo = consultation_repo
         self.consultant_repo = consultant_repo
@@ -43,6 +45,7 @@ class ConsultationService:
         self.transaction_repo = transaction_repo
         self.status_history_repo = status_history_repo
         self.notification_service = notification_service
+        self.chat_service= chat_service
 
     def _to_response(
         self,
@@ -163,25 +166,13 @@ class ConsultationService:
             requested_amount=Decimal(data.budget),
             allocated_minutes=allocated_minutes,
             amount_charged=Decimal("0"),
+            requested_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
             problem_statement=data.problem_statement,
-            scheduled_start=None,
-            scheduled_end=None,
         )
 
         created = await self.consultation_repo.create(
             consultation
-        )
-
-        await self.wallet_service.debit_wallet(
-            wallet=wallet,
-            amount_paise=amount_paise,
-            reference_type=WalletReferenceType.CONSULTATION,
-            reference_id=str(created.id),
-            description=(
-                f"Consultation booking for "
-                f"{allocated_minutes} minutes"
-            ),
-            user_id=user.id,
         )
 
         await self._record_status_change(
@@ -336,15 +327,14 @@ class ConsultationService:
                 "You can only start your own consultations"
             )
 
-        if consultation.status != ConsultationStatus.REQUESTED.value:
+        if consultation.status != ConsultationStatus.ACCEPTED.value:
             raise ValidationException(
-                "Only requested consultations can be started"
+                "Only accepted consultations can be started"
             )
 
         old_status = consultation.status
 
         consultation.status = ConsultationStatus.ACTIVE.value
-
         consultation.actual_start_time = datetime.now(
             timezone.utc
         )
@@ -410,9 +400,16 @@ class ConsultationService:
 
         now = datetime.now(timezone.utc)
 
-        duration_minutes = consultation.allocated_minutes
+        duration_minutes = math.ceil(
+            (
+                now - consultation.actual_start_time
+            ).total_seconds() / 60
+        )
 
-        amount_charged = consultation.requested_amount
+        amount_charged = (
+            Decimal(duration_minutes)
+            * consultation.consultant_rate
+        )
 
         old_status = consultation.status
 
@@ -420,6 +417,22 @@ class ConsultationService:
         consultation.duration_minutes = duration_minutes
         consultation.amount_charged = amount_charged
         consultation.status = ConsultationStatus.COMPLETED.value
+
+        # Debit the client's wallet
+        wallet = await self.wallet_repo.get_by_user_id(
+            consultation.client_id
+        )
+        amount_paise = rupees_to_paise(
+            amount_charged
+        )
+        await self.wallet_service.debit_wallet(
+            wallet=wallet,
+            amount_paise=amount_paise,
+            reference_type=WalletReferenceType.CONSULTATION,
+            reference_id=str(consultation.id),
+            description="Consultation completed",
+            user_id=consultation.client_id,
+        )
 
         transaction = Transaction(
             consultation_id=consultation.id,
@@ -439,7 +452,6 @@ class ConsultationService:
         )
 
         consultant.total_consultations += 1
-
         await self.consultant_repo.update(
             consultant
         )
@@ -494,31 +506,11 @@ class ConsultationService:
                 "Only requested consultations can be rejected"
             )
 
-        wallet = await self.wallet_repo.get_by_user_id(
-            consultation.client_id
-        )
-
-        if not wallet:
-            raise NotFoundException(
-                "Client wallet not found"
-            )
-
-        amount_paise = rupees_to_paise(
-            consultation.requested_amount
-        )
-
-        await self.wallet_service.credit_wallet(
-            wallet=wallet,
-            amount_paise=amount_paise,
-            reference_type=WalletReferenceType.REFUND,
-            reference_id=str(consultation.id),
-            description="Consultation rejected refund",
-            user_id=consultation.client_id,
-        )
-
         old_status = consultation.status
 
+        # Update status and set rejection time
         consultation.status = ConsultationStatus.REJECTED.value
+        consultation.rejected_at = datetime.now(timezone.utc)
 
         await self.consultation_repo.update(
             consultation
@@ -542,5 +534,106 @@ class ConsultationService:
             )
 
         return {
-            "message": "Consultation rejected and refunded"
+            "message": "Consultation rejected"
         }
+
+    async def get_pending_requests(
+        self,
+        user,
+    ):
+        consultant = await self.consultant_repo.get_by_user_id(
+            user.id
+        )
+
+        if not consultant:
+            raise NotFoundException(
+                "Consultant not found"
+            )
+
+        consultations = await self.consultation_repo.get_requested_by_consultant(
+            consultant.id
+        )
+
+        now = datetime.now(timezone.utc)
+        valid = []
+
+        for consultation in consultations:
+            # If expired, update status and skip
+            if consultation.expires_at <= now:
+                consultation.status = ConsultationStatus.EXPIRED.value
+                await self.consultation_repo.update(consultation)
+                continue
+
+            valid.append(consultation)
+
+        return [
+            self._to_response(c)
+            for c in valid
+        ]
+
+    async def accept_consultation(
+        self,
+        consultation_id: UUID,
+        user,
+    ):
+        consultant = await self.consultant_repo.get_by_user_id(
+            user.id
+        )
+
+        if not consultant:
+            raise ForbiddenException(
+                "Only consultants can accept consultations"
+            )
+
+        consultation = await self.consultation_repo.get_by_id(
+            consultation_id
+        )
+
+        if not consultation:
+            raise NotFoundException(
+                "Consultation not found"
+            )
+
+        if consultation.consultant_id != consultant.id:
+            raise ForbiddenException(
+                "You can only accept your own consultations"
+            )
+
+        if consultation.status != ConsultationStatus.REQUESTED.value:
+            raise ValidationException(
+                "Only requested consultations can be accepted"
+            )
+
+        now = datetime.now(timezone.utc)
+
+        # Check expiry before accepting
+        if now > consultation.expires_at:
+            consultation.status = ConsultationStatus.EXPIRED.value
+            await self.consultation_repo.update(consultation)
+            raise ValidationException(
+                "Request expired"
+            )
+
+        old_status = consultation.status
+
+        # Accept – only set status and accepted_at
+        consultation.status = ConsultationStatus.ACCEPTED.value
+        consultation.accepted_at = now
+
+        await self.consultation_repo.update(
+            consultation
+        )
+        await self.chat_service.create_session(
+            consultation.id
+        )
+
+        await self._record_status_change(
+            consultation,
+            old_status,
+            ConsultationStatus.ACCEPTED.value,
+            user.id,
+        )
+
+        return self._to_response(
+            consultation
+        )

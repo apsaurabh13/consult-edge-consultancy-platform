@@ -1,17 +1,15 @@
 from uuid import UUID
-from typing import Optional
 
 from sqlalchemy import (
     ForeignKey,
-    Integer,
     String,
-    Text
+    Text,
 )
 
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
-    relationship
+    relationship,
 )
 
 from app.db.base import Base
@@ -22,38 +20,44 @@ from app.db.mixins import TimestampMixin
 class ChatMessage(
     Base,
     UUIDMixin,
-    TimestampMixin
+    TimestampMixin,
 ):
     __tablename__ = "chat_messages"
 
     session_id: Mapped[UUID] = mapped_column(
         ForeignKey(
             "chat_sessions.id",
-            ondelete="CASCADE"
+            ondelete="CASCADE",
         ),
         nullable=False,
-        index=True
+        index=True,
     )
 
-    user_message: Mapped[str] = mapped_column(
+    sender_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+
+    message: Mapped[str] = mapped_column(
         Text,
-        nullable=False
+        nullable=False,
     )
 
-    ai_response: Mapped[str] = mapped_column(
-        Text,
-        nullable=False
-    )
-
-    intent: Mapped[Optional[str]] = mapped_column(
-        String(100)
-    )
-
-    tokens_used: Mapped[Optional[int]] = mapped_column(
-        Integer
+    message_type: Mapped[str] = mapped_column(
+        String(20),
+        default="TEXT",
+        nullable=False,
     )
 
     session: Mapped["ChatSession"] = relationship(
         "ChatSession",
-        back_populates="messages"
+        back_populates="messages",
     )
+
+    sender: Mapped["User"] = relationship(
+    "User",
+    back_populates="chat_messages",
+)

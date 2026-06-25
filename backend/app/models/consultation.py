@@ -54,10 +54,12 @@ class Consultation(
         nullable=False
     )
 # REQUESTED
+# ACCEPTED
 # ACTIVE
 # COMPLETED
 # CANCELLED
 # REJECTED
+# EXPIRED
 # REFUND_REQUESTED
 # REFUNDED
     scheduled_start: Mapped[Optional[datetime]] = mapped_column(
@@ -104,6 +106,22 @@ class Consultation(
     cancellation_reason: Mapped[Optional[str]] = mapped_column(
         Text
     )
+    requested_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    default=datetime.utcnow,
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    )
+    accepted_at: Mapped[Optional[datetime]] = mapped_column(
+    DateTime(timezone=True)
+)
+    rejected_at: Mapped[Optional[datetime]] = mapped_column(
+    DateTime(timezone=True)
+)
+    
 
     # =========================
     # Relationships
@@ -154,3 +172,8 @@ class Consultation(
     nullable=False,
     default=0
     )
+    chat_session: Mapped["ChatSession"] = relationship(
+    "ChatSession",
+    back_populates="consultation",
+    uselist=False,
+)

@@ -11,7 +11,9 @@ from app.api.v1.transactions.router import router as transaction_router
 from app.api.v1.wallet.router import router as wallet_router
 from app.api.v1.refunds.router import router as refund_router
 from app.api.v1.reviews.router import router as review_router
-
+from app.api.v1.chat.router import (
+    router as chat_router,
+)
 api_router = APIRouter()
 
 api_router.include_router(auth_router)
@@ -25,3 +27,7 @@ api_router.include_router(transaction_router)
 api_router.include_router(wallet_router)
 api_router.include_router(refund_router)
 api_router.include_router(review_router)
+api_router.include_router(
+    chat_router,
+   
+)

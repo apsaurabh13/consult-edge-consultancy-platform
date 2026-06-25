@@ -1,11 +1,16 @@
 from uuid import UUID
-
-from sqlalchemy import ForeignKey
+from datetime import datetime
+from typing import Optional
+from sqlalchemy import (
+    Boolean,
+      DateTime,
+    ForeignKey,
+)
 
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
-    relationship
+    relationship,
 )
 
 from app.db.base import Base
@@ -16,26 +21,40 @@ from app.db.mixins import TimestampMixin
 class ChatSession(
     Base,
     UUIDMixin,
-    TimestampMixin
+    TimestampMixin,
 ):
     __tablename__ = "chat_sessions"
 
-    user_id: Mapped[UUID] = mapped_column(
+    consultation_id: Mapped[UUID] = mapped_column(
         ForeignKey(
-            "users.id",
-            ondelete="CASCADE"
+            "consultations.id",
+            ondelete="CASCADE",
         ),
         nullable=False,
-        index=True
+        unique=True,
+        index=True,
     )
 
-    user: Mapped["User"] = relationship(
-        "User",
-        back_populates="chat_sessions"
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
+    consultation: Mapped["Consultation"] = relationship(
+        "Consultation",
+        back_populates="chat_session",
     )
 
     messages: Mapped[list["ChatMessage"]] = relationship(
         "ChatMessage",
         back_populates="session",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+    )
+    started_at: Mapped[Optional[datetime]] = mapped_column(
+    DateTime(timezone=True)
+    )
+
+    ended_at: Mapped[Optional[datetime]] = mapped_column(
+    DateTime(timezone=True)
     )

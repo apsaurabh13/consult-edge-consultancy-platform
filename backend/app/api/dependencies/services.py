@@ -16,8 +16,10 @@ from app.api.dependencies.repositories import (
     get_review_repository,
     get_notification_repository,
     get_consultation_status_history_repository,
+    get_chat_session_repository,
+    get_chat_message_repository,
 )
-
+from app.services.chat_service import ChatService
 from app.services.auth_service import AuthService
 from app.services.consultant_service import ConsultantService
 from app.services.admin_service import AdminService
@@ -29,6 +31,7 @@ from app.services.notification_service import NotificationService
 from app.services.wallet_service import WalletService
 from app.services.refund_service import RefundService
 from app.services.review_service import ReviewService
+from app.services.chat_service import ChatService
 
 
 def get_notification_service(
@@ -110,7 +113,16 @@ def get_availability_service(
         consultant_repo,
     )
 
-
+def get_chat_service(
+    chat_session_repo=Depends(get_chat_session_repository),
+    chat_message_repo=Depends(get_chat_message_repository),
+    consultation_repo=Depends(get_consultation_repository),
+):
+    return ChatService(
+        chat_session_repo,
+        chat_message_repo,
+        consultation_repo,
+    )
 def get_consultation_service(
     consultation_repo=Depends(get_consultation_repository),
     consultant_repo=Depends(get_consultant_repository),
@@ -119,6 +131,7 @@ def get_consultation_service(
     transaction_repo=Depends(get_transaction_repository),
     status_history_repo=Depends(get_consultation_status_history_repository),
     notification_service=Depends(get_notification_service),
+    chat_service= Depends(get_chat_service)
 ):
     return ConsultationService(
         consultation_repo,
@@ -128,6 +141,7 @@ def get_consultation_service(
         transaction_repo,
         status_history_repo,
         notification_service,
+        chat_service
     )
 
 
