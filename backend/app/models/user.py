@@ -101,11 +101,11 @@ class User(
         back_populates="user"
     )
 
-    chat_sessions: Mapped[list["ChatSession"]] = relationship(
-        "ChatSession",
-        back_populates="user"
-    )
     refund_requests: Mapped[list["RefundRequest"]] = relationship(
     "RefundRequest",
     back_populates="user"
+)
+    chat_messages: Mapped[list["ChatMessage"]] = relationship(
+    "ChatMessage",
+    back_populates="sender",
 )

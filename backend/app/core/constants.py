@@ -16,10 +16,12 @@ class ConsultantStatus(str, Enum):
 
 class ConsultationStatus(str, Enum):
     REQUESTED = "REQUESTED"
+    ACCEPTED="ACCEPTED"
     ACTIVE = "ACTIVE"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
     REJECTED = "REJECTED"
+    EXPIRED="EXPIRED"
     REFUND_REQUESTED = "REFUND_REQUESTED"
     REFUNDED = "REFUNDED"
 

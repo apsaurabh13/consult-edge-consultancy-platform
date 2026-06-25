@@ -13,6 +13,8 @@ from app.repositories.expertise_category_repository import (
 from app.repositories.consultant_expertise_repository import (
     ConsultantExpertiseRepository,
 )
+from app.repositories.chat_session_repository import ChatSessionRepository
+from app.repositories.chat_message_repository import ChatMessageRepository
 from app.repositories.availability_repository import AvailabilityRepository
 from app.repositories.consultation_repository import ConsultationRepository
 from app.repositories.transaction_repository import TransactionRepository
@@ -116,3 +118,13 @@ def get_consultation_status_history_repository(
     db: AsyncSession = Depends(get_db),
 ):
     return ConsultationStatusHistoryRepository(db)
+def get_chat_session_repository(
+    db: AsyncSession = Depends(get_db),
+):
+    return ChatSessionRepository(db)
+
+
+def get_chat_message_repository(
+    db: AsyncSession = Depends(get_db),
+):
+    return ChatMessageRepository(db)

@@ -1,53 +1,90 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Body, Depends
 
-from app.api.dependencies.auth import get_current_user, require_consultant
-from app.api.dependencies.services import get_consultation_service
+from app.api.dependencies.auth import (
+    get_current_user,
+    require_consultant,
+)
+from app.api.dependencies.services import (
+    get_consultation_service,
+)
 from app.schemas.consultation import (
     BookConsultationRequest,
     ConsultationResponse,
 )
-from app.services.consultation_service import ConsultationService
+from app.services.consultation_service import (
+    ConsultationService,
+)
 
 router = APIRouter(
     prefix="/consultations",
-    tags=["Consultations"]
+    tags=["Consultations"],
 )
 
 
-@router.post("", response_model=ConsultationResponse)
+# ======================================================
+# Client APIs
+# ======================================================
+
+@router.post(
+    "",
+    response_model=ConsultationResponse,
+)
 async def book_consultation(
     data: BookConsultationRequest,
     current_user=Depends(get_current_user),
-    
-    service: ConsultationService = Depends(get_consultation_service),
+    service: ConsultationService = Depends(
+        get_consultation_service,
+    ),
 ):
-    return await service.book_consultation(current_user, data)
+    return await service.book_consultation(
+        current_user,
+        data,
+    )
 
 
-@router.get("", response_model=list[ConsultationResponse])
+@router.get(
+    "",
+    response_model=list[ConsultationResponse],
+)
 async def get_consultations(
     current_user=Depends(get_current_user),
-    service: ConsultationService = Depends(get_consultation_service),
+    service: ConsultationService = Depends(
+        get_consultation_service,
+    ),
 ):
-    return await service.get_consultations(current_user)
+    return await service.get_consultations(
+        current_user,
+    )
 
 
-@router.get("/history", response_model=list[ConsultationResponse])
+@router.get(
+    "/history",
+    response_model=list[ConsultationResponse],
+)
 async def get_consultation_history(
     current_user=Depends(get_current_user),
-    service: ConsultationService = Depends(get_consultation_service),
+    service: ConsultationService = Depends(
+        get_consultation_service,
+    ),
 ):
-    return await service.get_consultation_history(current_user)
+    return await service.get_consultation_history(
+        current_user,
+    )
 
 
-@router.get("/{consultation_id}", response_model=ConsultationResponse)
+@router.get(
+    "/{consultation_id}",
+    response_model=ConsultationResponse,
+)
 async def get_consultation(
     consultation_id: UUID,
     current_user=Depends(get_current_user),
-    service: ConsultationService = Depends(get_consultation_service),
+    service: ConsultationService = Depends(
+        get_consultation_service,
+    ),
 ):
     return await service.get_consultation_by_id(
         consultation_id,
@@ -55,17 +92,75 @@ async def get_consultation(
     )
 
 
-@router.patch("/{consultation_id}/cancel")
+@router.patch(
+    "/{consultation_id}/cancel",
+)
 async def cancel_consultation(
     consultation_id: UUID,
-    cancellation_reason: Optional[str] = Body(default=None),
+    cancellation_reason: Optional[str] = Body(
+        default=None,
+    ),
     current_user=Depends(get_current_user),
-    service: ConsultationService = Depends(get_consultation_service),
+    service: ConsultationService = Depends(
+        get_consultation_service,
+    ),
 ):
     return await service.cancel_consultation(
         consultation_id,
         current_user,
         cancellation_reason,
+    )
+
+
+# ======================================================
+# Consultant APIs
+# ======================================================
+
+@router.get(
+    "/requests",
+    response_model=list[ConsultationResponse],
+)
+async def get_pending_requests(
+    current_user=Depends(require_consultant),
+    service: ConsultationService = Depends(
+        get_consultation_service,
+    ),
+):
+    return await service.get_pending_requests(
+        current_user,
+    )
+
+
+@router.post(
+    "/{consultation_id}/accept",
+    response_model=ConsultationResponse,
+)
+async def accept_consultation(
+    consultation_id: UUID,
+    current_user=Depends(require_consultant),
+    service: ConsultationService = Depends(
+        get_consultation_service,
+    ),
+):
+    return await service.accept_consultation(
+        consultation_id,
+        current_user,
+    )
+
+
+@router.post(
+    "/{consultation_id}/reject",
+)
+async def reject_consultation(
+    consultation_id: UUID,
+    current_user=Depends(require_consultant),
+    service: ConsultationService = Depends(
+        get_consultation_service,
+    ),
+):
+    return await service.reject_consultation(
+        consultation_id,
+        current_user,
     )
 
 
@@ -76,7 +171,9 @@ async def cancel_consultation(
 async def start_consultation(
     consultation_id: UUID,
     current_user=Depends(require_consultant),
-    service: ConsultationService = Depends(get_consultation_service),
+    service: ConsultationService = Depends(
+        get_consultation_service,
+    ),
 ):
     return await service.start_consultation(
         consultation_id,
@@ -91,22 +188,11 @@ async def start_consultation(
 async def end_consultation(
     consultation_id: UUID,
     current_user=Depends(require_consultant),
-    service: ConsultationService = Depends(get_consultation_service),
+    service: ConsultationService = Depends(
+        get_consultation_service,
+    ),
 ):
     return await service.end_consultation(
-        consultation_id,
-        current_user,
-    )
-
-@router.post(
-    "/{consultation_id}/reject",
-)
-async def reject_consultation(
-    consultation_id: UUID,
-    current_user=Depends(require_consultant),
-    service: ConsultationService = Depends(get_consultation_service),
-):
-    return await service.reject_consultation(
         consultation_id,
         current_user,
     )
